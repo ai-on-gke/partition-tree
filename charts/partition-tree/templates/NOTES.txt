@@ -1,0 +1,39 @@
+{{- $saName := include "partition-tree.serviceAccountName" . -}}
+{{- $annotations := .Values.serviceAccount.annotations | default dict -}}
+{{- $gcpSA := index $annotations "iam.gke.io/gcp-service-account" -}}
+{{- $metricsConfig := .Values.metrics | default dict -}}
+{{- $enableMetrics := true -}}
+{{- if hasKey $metricsConfig "enableMetrics" -}}
+{{- $enableMetrics = $metricsConfig.enableMetrics -}}
+{{- end -}}
+{{- $enableGoogleInternal := true -}}
+{{- if hasKey $metricsConfig "enableGoogleInternalMetrics" -}}
+{{- $enableGoogleInternal = $metricsConfig.enableGoogleInternalMetrics -}}
+{{- end -}}
+{{- $directPush := or (index $metricsConfig "directPush") (index $metricsConfig "enableDirectGCPExport") -}}
+{{- $needsMetricWriter := and $enableMetrics (or $enableGoogleInternal $directPush) -}}
+PartitionTree controller has been deployed to namespace "{{ .Release.Namespace }}".
+
+1. Verify the controller pod is running:
+   kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+{{- if not (.Values.gce).mock }}
+
+2. Required GCP IAM Roles:
+   The GCP service account used by the controller (via Workload Identity on
+   ServiceAccount "{{ .Release.Namespace }}/{{ $saName }}" or the GKE node pool SA)
+   MUST be granted:
+   - roles/compute.viewer           (reads GCE MIG accelerator topology)
+{{- if $needsMetricWriter }}
+   - roles/monitoring.metricWriter  (exports PartitionTree metrics via Cloud Monitoring CreateTimeSeries)
+{{- end }}
+{{- if $gcpSA }}
+
+   Workload Identity GCP Service Account: {{ $gcpSA }}
+{{- else }}
+
+   NOTE: No "iam.gke.io/gcp-service-account" annotation is set on "{{ $saName }}".
+   If using GKE Workload Identity, pass:
+     --set serviceAccount.annotations."iam\.gke\.io/gcp-service-account"=partition-controller@YOUR_PROJECT.iam.gserviceaccount.com
+{{- end }}
+{{- end }}

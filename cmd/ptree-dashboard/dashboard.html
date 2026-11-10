@@ -1,0 +1,2782 @@
+<!DOCTYPE html>
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Partition Tree Dashboard</title>
+<style>
+/* ============================================================
+   SECTION: CSS Custom Properties — Dark & Light Themes
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body, body.dark {
+  --bg-primary: #0F172A;
+  --bg-surface: #1E293B;
+  --bg-elevated: #334155;
+  --border: #475569;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-tertiary: #64748B;
+  --accent: #22D3EE;
+  --healthy-empty: #2D6B4F;
+  --healthy-full: #4ADE80;
+  --unknown-state: #7A8BA4;
+}
+
+body.light {
+  --bg-primary: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #F1F5F9;
+  --border: #E2E8F0;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-tertiary: #94A3B8;
+  --accent: #0891B2;
+  --healthy-empty: #BBF7D0;
+  --healthy-full: #16A34A;
+  --unknown-state: #94A3B8;
+}
+
+body.midnight {
+  --bg-primary: #000000;
+  --bg-surface: #0A0A0A;
+  --bg-elevated: #1A1A1A;
+  --border: #333333;
+  --text-primary: #E0E0E0;
+  --text-secondary: #888888;
+  --text-tertiary: #555555;
+  --accent: #00E5FF;
+  --healthy-empty: #2D6B4F;
+  --healthy-full: #4ADE80;
+  --unknown-state: #808080;
+}
+
+body.cyberpunk {
+  --bg-primary: #0D0221;
+  --bg-surface: #150530;
+  --bg-elevated: #1F0A45;
+  --border: #6B21A8;
+  --text-primary: #E0F2FE;
+  --text-secondary: #A78BFA;
+  --text-tertiary: #7C3AED;
+  --accent: #39FF14;
+  --healthy-empty: #2D6B4F;
+  --healthy-full: #39FF14;
+  --unknown-state: #8B7FC7;
+}
+
+body.ocean {
+  --bg-primary: #0A1929;
+  --bg-surface: #0D2137;
+  --bg-elevated: #132F4C;
+  --border: #1E4976;
+  --text-primary: #E3F2FD;
+  --text-secondary: #90CAF9;
+  --text-tertiary: #5090D3;
+  --accent: #4FC3F7;
+  --healthy-empty: #1B7A5A;
+  --healthy-full: #4ADE80;
+  --unknown-state: #6E8FAF;
+}
+
+body.solarized {
+  --bg-primary: #002B36;
+  --bg-surface: #073642;
+  --bg-elevated: #0A4050;
+  --border: #586E75;
+  --text-primary: #FDF6E3;
+  --text-secondary: #93A1A1;
+  --text-tertiary: #657B83;
+  --accent: #B58900;
+  --healthy-empty: #2D7A52;
+  --healthy-full: #4ADE80;
+  --unknown-state: #839496;
+}
+
+body.high-contrast {
+  --bg-primary: #000000;
+  --bg-surface: #1A1A1A;
+  --bg-elevated: #2D2D2D;
+  --border: #FFFFFF;
+  --text-primary: #FFFFFF;
+  --text-secondary: #FFFF00;
+  --text-tertiary: #CCCCCC;
+  --accent: #00FF00;
+  --healthy-empty: #2D8B4F;
+  --healthy-full: #00FF00;
+  --unknown-state: #AAAAAA;
+}
+
+/* ============================================================
+   SECTION: Base Styles
+   ============================================================ */
+html, body {
+  height: 100%;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+/* ============================================================
+   SECTION: Layout — Sidebar + Main
+   ============================================================ */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s ease, min-width 0.2s ease;
+  overflow: hidden;
+  z-index: 100;
+}
+
+.sidebar.collapsed {
+  width: 48px;
+  min-width: 48px;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+  color: var(--accent);
+}
+
+.sidebar.collapsed .sidebar-title { display: none; }
+.sidebar.collapsed .sidebar-nav { display: none; }
+
+#sidebar-toggle {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+#sidebar-toggle:hover { background: var(--bg-elevated); }
+
+/* Sidebar Nav / Filter Groups */
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.filter-group {
+  padding: 0 14px;
+  margin-bottom: 4px;
+}
+
+.filter-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 8px 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.filter-group-header:hover { color: var(--text-primary); }
+
+.filter-group-arrow {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.filter-group.collapsed-group .filter-group-arrow { transform: rotate(-90deg); }
+.filter-group.collapsed-group .filter-group-options { display: none; }
+
+.filter-group-options {
+  padding: 2px 0 6px 0;
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.filter-option:hover { color: var(--text-primary); }
+
+.filter-option input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.filter-option .filter-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+#theme-select {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px 8px;
+  font-size: 12px;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394A3B8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+#theme-select:hover { color: var(--text-primary); border-color: var(--accent); }
+#theme-select:focus { outline: 1px solid var(--accent); }
+#theme-select option { background: var(--bg-surface); color: var(--text-primary); }
+.sidebar.collapsed .sidebar-footer { overflow: hidden; }
+.theme-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); margin-bottom: 4px; }
+
+/* ============================================================
+   SECTION: Main Content
+   ============================================================ */
+#main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 20px 28px;
+  gap: 24px;
+  min-width: 0;
+}
+
+/* ============================================================
+   SECTION: Matrix
+   ============================================================ */
+#matrix-section {
+  flex-shrink: 0;
+}
+
+.matrix-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.matrix-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+#stale-indicator {
+  background: rgba(234, 179, 8, 0.15);
+  color: #EAB308;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.hidden { display: none !important; }
+
+.matrix-grid {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.matrix-panel {
+  flex: 1;
+  min-width: 300px;
+}
+
+.matrix-panel h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.canvas-container {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.canvas-container canvas {
+  display: block;
+}
+
+/* Tooltip */
+.tooltip {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  pointer-events: none;
+  font-size: 12px;
+  font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  color: var(--text-primary);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+.tooltip .tt-name { font-weight: 700; color: var(--accent); }
+.tooltip .tt-row { display: flex; justify-content: space-between; gap: 16px; }
+.tooltip .tt-label { color: var(--text-secondary); }
+
+/* ============================================================
+   SECTION: KPI Ribbon
+   ============================================================ */
+#kpi-section {
+  flex-shrink: 0;
+}
+
+.kpi-progress-bars {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.progress-group {
+  flex: 1;
+  min-width: 200px;
+}
+
+.progress-group label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.progress-track {
+  height: 8px;
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.bar-teal { background: linear-gradient(90deg, #0891B2, #22D3EE); }
+.bar-blue { background: linear-gradient(90deg, #3B82F6, #60A5FA); }
+
+.progress-group > span {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+  display: block;
+  font-family: ui-monospace, monospace;
+}
+
+.kpi-cards {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.kpi-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 24px;
+  min-width: 140px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kpi-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+}
+
+.kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.kpi-card.kpi-alert-red { border-color: #EF4444; }
+.kpi-card.kpi-alert-orange { border-color: #F97316; }
+.kpi-card.kpi-alert-yellow { border-color: #EAB308; }
+
+/* ============================================================
+   SECTION: Detail Table
+   ============================================================ */
+#table-section {
+  flex-shrink: 0;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.table-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+#table-count {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-family: ui-monospace, monospace;
+}
+
+#table-search {
+  margin-left: auto;
+  padding: 6px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 220px;
+  outline: none;
+}
+
+#table-search:focus { border-color: var(--accent); }
+#table-search::placeholder { color: var(--text-tertiary); }
+
+.table-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+}
+
+.data-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.data-table th {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table th:hover { color: var(--accent); }
+.data-table th.sort-active { color: var(--accent); }
+
+.data-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 250px;
+}
+
+.data-table tbody tr:nth-child(odd) { background: var(--bg-primary); }
+.data-table tbody tr:nth-child(even) { background: var(--bg-surface); }
+.data-table tbody tr:hover { background: var(--bg-elevated); cursor: pointer; }
+
+.state-unhealthy { color: #EF4444; font-weight: 700; }
+.state-degraded { color: #F97316; font-weight: 700; }
+.state-incomplete { color: #F97316; }
+.state-nodeready { color: #EAB308; font-weight: 700; }
+.state-unknown { color: var(--unknown-state); }
+.state-healthy { color: var(--healthy-full); }
+
+.synced-yes { color: #22C55E; }
+.synced-no { color: #EF4444; }
+
+.mini-bar-track {
+  display: inline-block;
+  width: 50px;
+  height: 6px;
+  background: var(--bg-elevated);
+  border-radius: 3px;
+  overflow: hidden;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.mini-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+/* ============================================================
+   SECTION: Detail Panel (Slide-in)
+   ============================================================ */
+.detail-panel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  height: 100vh;
+  width: fit-content;
+  min-width: 420px;
+  max-width: calc(100vw - 240px);
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border);
+  z-index: 500;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.3);
+}
+
+.detail-panel.open {
+  transform: translateX(0);
+}
+
+.detail-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.detail-panel-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#detail-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+#detail-close:hover { background: var(--bg-elevated); color: var(--text-primary); }
+
+.detail-panel-meta {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.meta-badge {
+  background: var(--bg-elevated);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.detail-panel-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+}
+
+/* Tree View */
+.detail-panel-tree {
+  padding: 12px 16px;
+  width: max-content;
+  min-width: 100%;
+}
+
+.tree-node {
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  font-size: 12px;
+  width: max-content;
+  min-width: 100%;
+}
+
+.tree-node-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  cursor: pointer;
+  border-radius: 4px;
+  padding-left: 4px;
+  padding-right: 4px;
+  width: max-content;
+  min-width: 100%;
+  white-space: nowrap;
+}
+.tree-node-line > * {
+  flex-shrink: 0;
+}
+
+.tree-node-line:hover { background: var(--bg-elevated); }
+
+.tree-toggle {
+  width: 14px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tree-partition-id { color: var(--text-primary); font-weight: 600; }
+.tree-topology { color: var(--text-tertiary); font-size: 11px; }
+.tree-state-badge {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.tree-state-badge.badge-healthy { background: rgba(74,222,128,0.15); color: var(--healthy-full); }
+.tree-state-badge.badge-unhealthy { background: rgba(239,68,68,0.15); color: #EF4444; }
+.tree-state-badge.badge-degraded { background: rgba(249,115,22,0.15); color: #F97316; }
+.tree-state-badge.badge-incomplete { background: rgba(249,115,22,0.15); color: #F97316; }
+.tree-state-badge.badge-unknown { background: rgba(71,85,105,0.3); color: var(--unknown-state); }
+
+.tree-occupancy { color: var(--text-tertiary); font-size: 11px; }
+.tree-taints { color: var(--accent); font-size: 11px; margin-left: 6px; }
+
+.tree-children {
+  padding-left: 20px;
+  width: max-content;
+  min-width: 100%;
+}
+.tree-children.collapsed-tree { display: none; }
+
+.tree-leaf-nodes {
+  padding-left: 20px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  width: max-content;
+  min-width: 100%;
+}
+
+.tree-leaf-node {
+  padding: 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  min-width: 100%;
+  white-space: nowrap;
+}
+.tree-leaf-node > * {
+  flex-shrink: 0;
+}
+
+.node-ready-true { color: #22C55E; }
+.node-ready-false { color: #EF4444; }
+
+
+
+/* Events Table */
+.detail-panel-events {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.detail-panel-events h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.events-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+}
+
+.events-table th {
+  text-align: left;
+  padding: 6px 8px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+.events-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+
+.events-table tr.event-warning { background: rgba(234, 179, 8, 0.1); }
+
+.event-type-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.event-type-badge.badge-normal { background: rgba(34,197,94,0.15); color: #22C55E; }
+.event-type-badge.badge-warning { background: rgba(234,179,8,0.15); color: #EAB308; }
+
+.detail-error {
+  padding: 16px;
+  color: #EF4444;
+  font-size: 13px;
+  text-align: center;
+}
+
+.detail-loading {
+  padding: 24px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ============================================================
+   SECTION: Scrollbar Styling
+   ============================================================ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+/* ============================================================
+   SECTION: Backdrop overlay when detail panel is open
+   ============================================================ */
+.detail-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 499;
+}
+
+/* ============================================================
+   SECTION: Pod Summary Cards
+   ============================================================ */
+.pod-groups-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.pod-group {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pod-group-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; cursor: pointer; user-select: none;
+  transition: background 0.15s;
+  min-width: 0;
+  gap: 12px;
+}
+.pod-group-header:hover { background: var(--bg-elevated); }
+
+.pod-group-title {
+  font-size: 14px; font-weight: 700; color: var(--accent);
+  display: flex; align-items: center; gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+.pod-group-title .pod-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pod-group-title .pod-arrow { font-size: 10px; color: var(--text-tertiary); transition: transform 0.2s; }
+.pod-group.collapsed .pod-arrow { transform: rotate(-90deg); }
+
+.pod-group-stats {
+  display: flex; gap: 12px; font-size: 11px; font-family: ui-monospace, monospace;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.pod-group-stats .stat-bad { color: #EF4444; font-weight: 600; }
+
+.pod-group-body { padding: 8px 16px 12px; }
+.pod-group.collapsed .pod-group-body { display: none; }
+
+.pod-pt-grid {
+  display: flex; flex-wrap: wrap; gap: 3px;
+}
+
+.pod-pt-cell {
+  width: 20px; height: 20px; border-radius: 3px; cursor: pointer;
+  border: 1px solid rgba(148,163,184,0.3);
+  transition: transform 0.1s;
+}
+.pod-pt-cell:hover { transform: scale(1.3); z-index: 2; border-color: #fff; }
+
+/* ============================================================
+   SECTION: Pod Detail Tabs
+   ============================================================ */
+#pod-tabs-section { flex-shrink: 0; }
+
+.pod-tab-bar {
+  display: flex; gap: 2px; border-bottom: 1px solid var(--border);
+  overflow-x: auto; flex-shrink: 0;
+}
+
+.pod-tab-btn {
+  padding: 8px 16px; font-size: 12px; font-weight: 600;
+  background: var(--bg-surface); color: var(--text-secondary);
+  border: 1px solid var(--border); border-bottom: none;
+  border-radius: 6px 6px 0 0; cursor: pointer;
+  white-space: nowrap; display: flex; align-items: center; gap: 6px;
+  max-width: 220px;
+}
+.pod-tab-btn > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.pod-tab-btn:hover { color: var(--text-primary); background: var(--bg-elevated); }
+.pod-tab-btn.active { color: var(--accent); background: var(--bg-primary); border-bottom: 2px solid var(--accent); }
+.pod-tab-close {
+  font-size: 14px; color: var(--text-tertiary); cursor: pointer;
+  padding: 0 2px; border-radius: 3px;
+}
+.pod-tab-close:hover { color: #EF4444; background: rgba(239,68,68,0.15); }
+
+.pod-tab-content {
+  background: var(--bg-primary); border: 1px solid var(--border);
+  border-top: none; border-radius: 0 0 8px 8px;
+  padding: 16px; overflow-y: auto;
+}
+
+.main-tab-panel { padding-top: 8px; }
+
+.pod-detail-header {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.pod-detail-header h3 { font-size: 15px; font-weight: 700; color: var(--accent); }
+
+.pod-detail-trees {
+  display: flex; flex-wrap: wrap; gap: 20px;
+}
+
+.pt-detail-card {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px; min-width: 160px;
+}
+
+.pt-detail-card-title {
+  font-size: 11px; font-weight: 600; color: var(--text-secondary);
+  margin-bottom: 6px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 180px; cursor: pointer;
+}
+.pt-detail-card-title:hover { color: var(--accent); }
+
+.pt-host-grid {
+  display: grid; gap: 2px;
+}
+
+.pt-host-cell {
+  width: 18px; height: 18px; border-radius: 2px;
+  border: 1px solid rgba(148,163,184,0.2); cursor: pointer;
+}
+.pt-host-cell:hover { border-color: #fff; }
+</style>
+</head>
+<body class="dark">
+<!-- ============================================================
+     SECTION: HTML Structure
+     ============================================================ -->
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Partition Trees</span>
+      <button id="sidebar-toggle" title="Toggle sidebar">☰</button>
+    </div>
+    <nav class="sidebar-nav">
+      <!-- Filter: Accelerator Type -->
+      <div class="filter-group" id="filter-accel-type">
+        <div class="filter-group-header" onclick="toggleFilterGroup(this)">
+          <span>Accelerator Type</span>
+          <span class="filter-group-arrow">▼</span>
+        </div>
+        <div class="filter-group-options" id="filter-accel-type-options">
+          <!-- Dynamically populated from data -->
+        </div>
+      </div>
+      <!-- Filter: Health State -->
+      <div class="filter-group" id="filter-health">
+        <div class="filter-group-header" onclick="toggleFilterGroup(this)">
+          <span>Health State</span>
+          <span class="filter-group-arrow">▼</span>
+        </div>
+        <div class="filter-group-options">
+          <label class="filter-option">
+            <input type="checkbox" data-category="healthState" data-value="Healthy">
+            <span class="filter-color-dot" style="background:#4ADE80;"></span>
+            <span>Healthy</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" data-category="healthState" data-value="Unhealthy">
+            <span class="filter-color-dot" style="background:#EF4444;"></span>
+            <span>Unhealthy</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" data-category="healthState" data-value="Degraded">
+            <span class="filter-color-dot" style="background:#F97316;"></span>
+            <span>Degraded</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" data-category="healthState" data-value="NodeReadyFailed">
+            <span class="filter-color-dot" style="background:#EAB308;"></span>
+            <span>Node / TPU Not Ready</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" data-category="healthState" data-value="Unknown">
+            <span class="filter-color-dot" style="background:#7A8BA4;"></span>
+            <span>Unknown</span>
+          </label>
+        </div>
+      </div>
+      <!-- Filter: Occupancy -->
+      <div class="filter-group" id="filter-occupancy">
+        <div class="filter-group-header" onclick="toggleFilterGroup(this)">
+          <span>Occupancy</span>
+          <span class="filter-group-arrow">▼</span>
+        </div>
+        <div class="filter-group-options">
+          <label class="filter-option">
+            <input type="checkbox" data-category="occupancy" data-value="empty">
+            <span>Empty (0%)</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" data-category="occupancy" data-value="partial">
+            <span>Partial (1-99%)</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" data-category="occupancy" data-value="full">
+            <span>Full (100%)</span>
+          </label>
+        </div>
+      </div>
+      <!-- Filter: Sync Status -->
+      <div class="filter-group" id="filter-sync">
+        <div class="filter-group-header" onclick="toggleFilterGroup(this)">
+          <span>Sync Status</span>
+          <span class="filter-group-arrow">▼</span>
+        </div>
+        <div class="filter-group-options">
+          <label class="filter-option">
+            <input type="checkbox" data-category="syncStatus" data-value="synced">
+            <span>Synced</span>
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" data-category="syncStatus" data-value="unsynced">
+            <span>Out of Sync</span>
+          </label>
+        </div>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="theme-label">Theme</div>
+      <select id="theme-select">
+        <option value="dark">🌙 Dark</option>
+        <option value="light">☀️ Light</option>
+        <option value="midnight">🖤 Midnight</option>
+        <option value="cyberpunk">💜 Cyberpunk</option>
+        <option value="ocean">🌊 Ocean</option>
+        <option value="solarized">🌅 Solarized</option>
+        <option value="high-contrast">⬛ High Contrast</option>
+      </select>
+      <div style="margin-top:12px;">
+        <button id="auth-token-btn" onclick="openTokenModal()" style="width:100%;padding:6px 8px;font-size:11px;cursor:pointer;background:var(--bg-elevated);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span>🔑</span> <span id="auth-token-btn-label">Set Bearer Token</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main id="main-content">
+    <div id="stale-indicator" class="hidden" style="padding:4px 12px;color:#EAB308;font-size:12px;">⚠ Data Stale</div>
+
+    <!-- Unified Tab Bar -->
+    <div class="pod-tab-bar" id="main-tab-bar">
+      <div class="pod-tab-btn active" data-tab="summary">Summary</div>
+    </div>
+
+    <!-- Tab Panels -->
+    <div id="main-tab-panels">
+      <!-- Summary Tab Panel -->
+      <div id="tab-panel-summary" class="main-tab-panel">
+
+        <!-- KPI Summary Ribbon -->
+        <section id="kpi-section">
+          <div class="kpi-progress-bars">
+            <div class="progress-group">
+              <label>Fleet Occupancy</label>
+              <div class="progress-track">
+                <div id="bar-occupancy" class="progress-bar bar-teal" style="width: 0%"></div>
+              </div>
+              <span id="bar-occupancy-label">0%</span>
+            </div>
+            <div class="progress-group">
+              <label>Fleet Sync</label>
+              <div class="progress-track">
+                <div id="bar-sync" class="progress-bar bar-blue" style="width: 0%"></div>
+              </div>
+              <span id="bar-sync-label">0 / 0</span>
+            </div>
+          </div>
+          <div class="kpi-cards">
+            <div class="kpi-card">
+              <span class="kpi-value" id="kpi-total-trees">—</span>
+              <span class="kpi-label">Total Trees</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-value" id="kpi-occupied-leaves">—</span>
+              <span class="kpi-label">Occupied Leaves</span>
+            </div>
+            <div class="kpi-card" id="kpi-card-unhealthy">
+              <span class="kpi-value" id="kpi-unhealthy">—</span>
+              <span class="kpi-label">🛑 Unhealthy</span>
+            </div>
+            <div class="kpi-card" id="kpi-card-degraded">
+              <span class="kpi-value" id="kpi-degraded">—</span>
+              <span class="kpi-label">⚠️ Degraded</span>
+            </div>
+            <div class="kpi-card" id="kpi-card-nodeready">
+              <span class="kpi-value" id="kpi-node-ready-failed">—</span>
+              <span class="kpi-label">🔶 Node / TPU Not Ready</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-value" id="kpi-total-nodes">—</span>
+              <span class="kpi-label">Total Partitions</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Pod Groups -->
+        <section id="matrix-section">
+          <div class="matrix-header"><h2>Pods</h2></div>
+          <div class="pod-groups-container" id="pod-groups-container"></div>
+          <div id="tooltip" class="tooltip hidden"></div>
+        </section>
+
+        <!-- Detail Table -->
+        <section id="table-section">
+          <div class="table-header">
+            <h2>Partition Trees</h2>
+            <span id="table-count">0 trees</span>
+            <input id="table-search" type="text" placeholder="Search by name..." />
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="fleet-table">
+              <thead>
+                <tr>
+                  <th data-sort="name">Name ↕</th>
+                  <th data-sort="acceleratorType">Type ↕</th>
+                  <th data-sort="rootTopology">Topology ↕</th>
+                  <th data-sort="worstState">State ↕</th>
+                  <th data-sort="occupancyRatio">Occupancy ↕</th>
+                  <th data-sort="leafCount">Leaves ↕</th>
+                  <th data-sort="totalNodes">Partitions ↕</th>
+                  <th data-sort="synced">Synced ↕</th>
+                </tr>
+              </thead>
+              <tbody id="fleet-table-body">
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+      <!-- Pod detail tab panels inserted dynamically -->
+    </div>
+  </main>
+</div>
+
+<!-- Detail Panel (click-to-expand) -->
+<div id="detail-backdrop" class="detail-backdrop hidden"></div>
+<aside id="detail-panel" class="detail-panel">
+  <div class="detail-panel-header">
+    <h3 id="detail-title">—</h3>
+    <button id="detail-close">✕</button>
+  </div>
+  <div class="detail-panel-meta" id="detail-meta"></div>
+  <div class="detail-panel-body">
+    <div class="detail-panel-tree" id="detail-tree"></div>
+    <div class="detail-panel-events">
+      <h4>Recent Events</h4>
+      <table class="events-table" id="detail-events-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Type</th>
+            <th>Reason</th>
+            <th>Message</th>
+          </tr>
+        </thead>
+        <tbody id="detail-events-body">
+        </tbody>
+      </table>
+    </div>
+  </div>
+</aside>
+
+<!-- ============================================================
+     SECTION: JavaScript
+     ============================================================ -->
+<script>
+/* ============================================================
+   SECTION: Constants
+   ============================================================ */
+const CELL_SIZE = 12;
+const GAP = 2;
+const COLS_PER_MATRIX = 40;
+const POLL_INTERVAL_MS = 10000;
+const STALE_THRESHOLD = 3;
+
+/* ============================================================
+   SECTION: Global Render State (Chunk 7)
+   ============================================================ */
+const renderState = {
+  trees: [],
+  fleet: {},
+  filteredByType: {},  // { 'v7x': [...], 'v6e': [...], ... } — dynamic per type
+  filteredByPod: {},   // { 'pod-hash': [...], ... } — grouped by pod
+  knownAccelTypes: [], // ['v7x', 'v6e', ...] — discovered from data
+  filters: {
+    accelType: new Set(),
+    healthState: new Set(),
+    occupancy: new Set(),
+    syncStatus: new Set(),
+  },
+  hoveredCanvasId: null,
+  hoveredIndex: -1,
+  selectedTreeName: null,
+  lastTimestamp: '',
+  staleCount: 0,
+  sortColumn: 'worstState',
+  sortDirection: 'asc',
+  tableSearchQuery: '',
+  pollTimer: null,
+
+  openPodTabs: [],       // ordered list of open pod names
+  activePodTab: null,    // currently visible pod tab name
+};
+
+/* ============================================================
+   SECTION: Theme Toggle (Chunk 2)
+   ============================================================ */
+function initTheme() {
+  const saved = localStorage.getItem('theme');
+  const theme = saved || 'dark';
+  document.body.className = theme;
+  const sel = document.getElementById('theme-select');
+  if (sel) sel.value = theme;
+}
+
+function changeTheme(newTheme) {
+  document.body.className = newTheme;
+  localStorage.setItem('theme', newTheme);
+  document.dispatchEvent(new CustomEvent('theme-changed'));
+}
+
+/* Keep legacy toggleTheme for any existing references */
+function toggleTheme() {
+  const themes = ['dark','light','midnight','cyberpunk','ocean','solarized','high-contrast'];
+  const current = document.body.className || 'dark';
+  const idx = themes.indexOf(current);
+  const next = themes[(idx + 1) % themes.length];
+  changeTheme(next);
+  const sel = document.getElementById('theme-select');
+  if (sel) sel.value = next;
+}
+
+/* ============================================================
+   SECTION: Sidebar Toggle (Chunk 2)
+   ============================================================ */
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('collapsed');
+}
+
+function toggleFilterGroup(headerEl) {
+  const group = headerEl.parentElement;
+  group.classList.toggle('collapsed-group');
+}
+
+/* ============================================================
+   SECTION: Color Encoding (Chunk 3)
+   ============================================================ */
+function getEffectiveHealthState(tree) {
+  if (tree.worstState === 'Unhealthy') return 'Unhealthy';
+  if (tree.worstState === 'Degraded' || tree.worstState === 'Incomplete') return 'Degraded';
+  if (tree.nodeReadyFailed) return 'NodeReadyFailed';
+  if (tree.worstState === 'Unknown') return 'Unknown';
+  return 'Healthy';
+}
+
+function parseHexColor(hex) {
+  hex = hex.trim().replace('#', '');
+  return [
+    parseInt(hex.substring(0, 2), 16),
+    parseInt(hex.substring(2, 4), 16),
+    parseInt(hex.substring(4, 6), 16)
+  ];
+}
+
+function getThemeColor(varName, fallback) {
+  var val = getComputedStyle(document.body).getPropertyValue(varName).trim();
+  return val || fallback;
+}
+
+function interpolateOccupancyColor(ratio) {
+  // Lerp from --healthy-empty (ratio=0) to --healthy-full (ratio=1)
+  var c0 = parseHexColor(getThemeColor('--healthy-empty', '#2D6B4F'));
+  var c1 = parseHexColor(getThemeColor('--healthy-full', '#4ADE80'));
+  var r = Math.round(c0[0] + (c1[0] - c0[0]) * ratio);
+  var g = Math.round(c0[1] + (c1[1] - c0[1]) * ratio);
+  var b = Math.round(c0[2] + (c1[2] - c0[2]) * ratio);
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+function getCellColor(tree) {
+  const state = getEffectiveHealthState(tree);
+  switch (state) {
+    case 'Unhealthy': return '#EF4444';
+    case 'Degraded': return '#F97316';
+    case 'NodeReadyFailed': return '#EAB308';
+    case 'Unknown': return getThemeColor('--unknown-state', '#7A8BA4');
+    case 'Healthy':
+    default:
+      return interpolateOccupancyColor(tree.occupancyRatio || 0);
+  }
+}
+
+/* ============================================================
+   SECTION: HiDPI Canvas Setup (Chunk 3)
+   ============================================================ */
+function setupHiDPI(canvas, ctx, width, height) {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+/* ============================================================
+   SECTION: Hash Pattern for Out-of-Sync (Chunk 3)
+   ============================================================ */
+function drawHashPattern(ctx, x, y, size) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  // Draw 3 diagonal lines
+  for (let i = 0; i < 3; i++) {
+    const offset = (i + 1) * (size / 4);
+    ctx.moveTo(x + offset, y);
+    ctx.lineTo(x, y + offset);
+    ctx.moveTo(x + size, y + size - offset);
+    ctx.lineTo(x + size - offset, y + size);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* ============================================================
+   SECTION: Canvas Matrix Rendering (Chunk 3)
+   ============================================================ */
+function renderMatrix(canvasId, trees, cols) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const rows = Math.ceil(trees.length / cols) || 1;
+  const totalW = Math.max(48, cols * (CELL_SIZE + GAP) - GAP);
+  const totalH = Math.max(48, rows * (CELL_SIZE + GAP) - GAP);
+
+  setupHiDPI(canvas, ctx, totalW, totalH);
+
+  // Read background color from CSS
+  const bgColor = getComputedStyle(document.querySelector('.canvas-container')).backgroundColor || '#1E293B';
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, totalW, totalH);
+
+  // Color-batched rendering: group by color
+  const colorGroups = {};
+  const unsyncedIndices = [];
+
+  for (let i = 0; i < trees.length; i++) {
+    const color = getCellColor(trees[i]);
+    if (!colorGroups[color]) colorGroups[color] = [];
+    colorGroups[color].push(i);
+    if (!trees[i].synced) unsyncedIndices.push(i);
+  }
+
+  // Render cells by color group
+  for (const color in colorGroups) {
+    ctx.fillStyle = color;
+    const indices = colorGroups[color];
+    for (let k = 0; k < indices.length; k++) {
+      const idx = indices[k];
+      const col = idx % cols;
+      const row = Math.floor(idx / cols);
+      const x = col * (CELL_SIZE + GAP);
+      const y = row * (CELL_SIZE + GAP);
+      ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+      // Draw a contrasting border so cells are visible in all themes
+      ctx.strokeStyle = 'rgba(148,163,184,0.5)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, CELL_SIZE - 1, CELL_SIZE - 1);
+    }
+  }
+
+  // Draw hash patterns for out-of-sync
+  for (let k = 0; k < unsyncedIndices.length; k++) {
+    const idx = unsyncedIndices[k];
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const x = col * (CELL_SIZE + GAP);
+    const y = row * (CELL_SIZE + GAP);
+    drawHashPattern(ctx, x, y, CELL_SIZE);
+  }
+
+  // Draw highlight if applicable
+  if (renderState.hoveredCanvasId === canvasId && renderState.hoveredIndex >= 0 && renderState.hoveredIndex < trees.length) {
+    drawHighlightCell(ctx, renderState.hoveredIndex, cols);
+  }
+}
+
+function drawHighlightCell(ctx, idx, cols) {
+  const col = idx % cols;
+  const row = Math.floor(idx / cols);
+  const x = col * (CELL_SIZE + GAP);
+  const y = row * (CELL_SIZE + GAP);
+  ctx.save();
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x - 0.5, y - 0.5, CELL_SIZE + 1, CELL_SIZE + 1);
+  ctx.restore();
+}
+
+/* ============================================================
+   SECTION: Hit Testing (Chunk 3)
+   ============================================================ */
+function hitTest(canvas, event, cols, treeCount) {
+  const rect = canvas.getBoundingClientRect();
+  const mx = event.clientX - rect.left;
+  const my = event.clientY - rect.top;
+
+  const step = CELL_SIZE + GAP;
+  const col = Math.floor(mx / step);
+  const row = Math.floor(my / step);
+
+  // Check if in gap area
+  const localX = mx - col * step;
+  const localY = my - row * step;
+  if (localX > CELL_SIZE || localY > CELL_SIZE) return -1;
+  if (col < 0 || col >= cols) return -1;
+
+  const idx = row * cols + col;
+  if (idx < 0 || idx >= treeCount) return -1;
+  return idx;
+}
+
+/* ============================================================
+   SECTION: Canvas Interaction (Chunk 3)
+   ============================================================ */
+function setupCanvasInteraction(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  let rafPending = false;
+  let lastMouseEvent = null;
+
+  function getTrees() {
+    return renderState.filteredByType[canvasId.replace('canvas-', '')] || [];
+  }
+
+  canvas.addEventListener('mousemove', function(e) {
+    lastMouseEvent = e;
+    if (!rafPending) {
+      rafPending = true;
+      requestAnimationFrame(function() {
+        rafPending = false;
+        handleCanvasHover(canvasId, canvas, lastMouseEvent, getTrees());
+      });
+    }
+  });
+
+  canvas.addEventListener('mouseleave', function() {
+    hideTooltip();
+    renderState.hoveredCanvasId = null;
+    renderState.hoveredIndex = -1;
+    renderMatrix(canvasId, getTrees(), COLS_PER_MATRIX);
+  });
+
+  canvas.addEventListener('click', function(e) {
+    const trees = getTrees();
+    const idx = hitTest(canvas, e, COLS_PER_MATRIX, trees.length);
+    if (idx >= 0 && idx < trees.length) {
+      const tree = trees[idx];
+      document.dispatchEvent(new CustomEvent('tree-selected', { detail: { name: tree.name } }));
+    }
+  });
+}
+
+function handleCanvasHover(canvasId, canvas, e, trees) {
+  const idx = hitTest(canvas, e, COLS_PER_MATRIX, trees.length);
+  const prevIdx = renderState.hoveredIndex;
+  const prevCanvasId = renderState.hoveredCanvasId;
+
+  renderState.hoveredIndex = idx;
+  renderState.hoveredCanvasId = canvasId;
+
+  if (idx < 0 || idx >= trees.length) {
+    hideTooltip();
+    if (prevIdx >= 0) {
+      renderMatrix(canvasId, trees, COLS_PER_MATRIX);
+    }
+    return;
+  }
+
+  const tree = trees[idx];
+  showTooltip(e, tree);
+
+  if (idx !== prevIdx || canvasId !== prevCanvasId) {
+    renderMatrix(canvasId, trees, COLS_PER_MATRIX);
+    // Also re-render the other canvas if we switched
+    if (prevCanvasId && prevCanvasId !== canvasId) {
+      const prevType = prevCanvasId ? prevCanvasId.replace('canvas-', '') : null;
+      const otherTrees = prevType ? (renderState.filteredByType[prevType] || []) : [];
+      renderMatrix(prevCanvasId, otherTrees, COLS_PER_MATRIX);
+    }
+  }
+}
+
+/* ============================================================
+   SECTION: Tooltip (Chunk 3)
+   ============================================================ */
+function showTooltip(e, tree) {
+  const tooltip = document.getElementById('tooltip');
+  if (!tooltip) return;
+
+  const state = getEffectiveHealthState(tree);
+  const occupancy = Math.round(tree.occupancyRatio * 100);
+
+  // Root cause hints for each state
+  var stateHint = '';
+  switch(state) {
+    case 'Unhealthy': stateHint = 'Chip interconnect or VM failure'; break;
+    case 'Degraded': stateHint = 'Chip interconnect degraded'; break;
+    case 'Incomplete': stateHint = 'Partition topology incomplete'; break;
+    case 'NodeReadyFailed': stateHint = 'Node not ready or TPU chips not allocatable'; break;
+    case 'Unknown': stateHint = 'Awaiting GCE poll data'; break;
+    default: stateHint = ''; break;
+  }
+  var stateColor = getCellColor(tree);
+  var stateDisplay = '<span style="color:' + stateColor + ';font-weight:600;">' + escapeHtml(state) + '</span>';
+  if (stateHint) stateDisplay += '<br><span style="font-size:10px;color:var(--text-tertiary);">' + stateHint + '</span>';
+
+  tooltip.innerHTML =
+    '<div class="tt-name">' + escapeHtml(tree.name) + '</div>' +
+    '<div class="tt-row"><span class="tt-label">Type:</span><span>' + escapeHtml(tree.acceleratorType) + '</span></div>' +
+    '<div class="tt-row"><span class="tt-label">State:</span><span>' + stateDisplay + '</span></div>' +
+    '<div class="tt-row"><span class="tt-label">Topology:</span><span>' + escapeHtml(tree.rootTopology) + '</span></div>' +
+    '<div class="tt-row"><span class="tt-label">Occupancy:</span><span>' + tree.occupiedLeaves + '/' + tree.leafCount + ' leaves (' + occupancy + '%)</span></div>' +
+    '<div class="tt-row"><span class="tt-label">Partitions:</span><span>' + tree.totalNodes + '</span></div>' +
+    '<div class="tt-row"><span class="tt-label">Synced:</span><span>' + (tree.synced ? '✓ In sync' : '✗ Out of sync') + '</span></div>';
+
+  tooltip.classList.remove('hidden');
+
+  // Position: clamp to viewport
+  let tx = e.clientX + 12;
+  let ty = e.clientY + 12;
+  const tw = tooltip.offsetWidth;
+  const th = tooltip.offsetHeight;
+  if (tx + tw > window.innerWidth - 8) tx = e.clientX - tw - 12;
+  if (ty + th > window.innerHeight - 8) ty = e.clientY - th - 12;
+  tooltip.style.left = tx + 'px';
+  tooltip.style.top = ty + 'px';
+}
+
+function hideTooltip() {
+  const tooltip = document.getElementById('tooltip');
+  if (tooltip) tooltip.classList.add('hidden');
+}
+
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/* ============================================================
+   SECTION: KPI Summary Ribbon (Chunk 4)
+   ============================================================ */
+function updateKPIs(fleet) {
+  if (!fleet) return;
+
+  function fmt(n) {
+    if (n == null || isNaN(n)) return '—';
+    return Number(n).toLocaleString();
+  }
+
+  document.getElementById('kpi-total-trees').textContent = fmt(fleet.totalTrees);
+  document.getElementById('kpi-occupied-leaves').textContent = fmt(fleet.occupiedLeaves);
+  document.getElementById('kpi-unhealthy').textContent = fmt(fleet.unhealthyLeaves);
+  document.getElementById('kpi-degraded').textContent = fmt((fleet.degradedLeaves || 0) + (fleet.incompleteLeaves || 0));
+  document.getElementById('kpi-node-ready-failed').textContent = fmt(fleet.nodeReadyFailed);
+  document.getElementById('kpi-total-nodes').textContent = fmt(fleet.totalNodes);
+
+  // Occupancy progress bar
+  const occupancyPct = fleet.occupancyPercent || 0;
+  const barOcc = document.getElementById('bar-occupancy');
+  const barOccLabel = document.getElementById('bar-occupancy-label');
+  barOcc.style.width = Math.min(100, occupancyPct).toFixed(1) + '%';
+  barOccLabel.textContent = occupancyPct.toFixed(1) + '%';
+
+  // Sync progress bar
+  const syncedTrees = fleet.syncedTrees || 0;
+  const totalTrees = fleet.totalTrees || 0;
+  const syncPct = totalTrees > 0 ? (syncedTrees / totalTrees * 100) : 0;
+  const barSync = document.getElementById('bar-sync');
+  const barSyncLabel = document.getElementById('bar-sync-label');
+  barSync.style.width = Math.min(100, syncPct).toFixed(1) + '%';
+  barSyncLabel.textContent = fmt(syncedTrees) + ' / ' + fmt(totalTrees);
+
+  // Alert card coloring
+  const cardUnhealthy = document.getElementById('kpi-card-unhealthy');
+  const cardDegraded = document.getElementById('kpi-card-degraded');
+  const cardNodeReady = document.getElementById('kpi-card-nodeready');
+
+  cardUnhealthy.className = 'kpi-card' + ((fleet.unhealthyLeaves || 0) > 0 ? ' kpi-alert-red' : '');
+  cardDegraded.className = 'kpi-card' + (((fleet.degradedLeaves || 0) + (fleet.incompleteLeaves || 0)) > 0 ? ' kpi-alert-orange' : '');
+  cardNodeReady.className = 'kpi-card' + ((fleet.nodeReadyFailed || 0) > 0 ? ' kpi-alert-yellow' : '');
+}
+
+/* ============================================================
+   SECTION: Detail Table (Chunk 5)
+   ============================================================ */
+function getTableTrees() {
+  let trees = applyFilters(renderState.trees);
+  // Apply search filter
+  if (renderState.tableSearchQuery) {
+    const q = renderState.tableSearchQuery.toLowerCase();
+    trees = trees.filter(function(t) {
+      return t.name.toLowerCase().indexOf(q) >= 0;
+    });
+  }
+  // Apply sort
+  trees = sortTreesArray(trees, renderState.sortColumn, renderState.sortDirection);
+  return trees;
+}
+
+function sortTreesArray(trees, column, direction) {
+  const sorted = trees.slice();
+  const dir = direction === 'desc' ? -1 : 1;
+
+  sorted.sort(function(a, b) {
+    let va = a[column];
+    let vb = b[column];
+
+    // Handle special sorts
+    if (column === 'synced') {
+      va = va ? 1 : 0;
+      vb = vb ? 1 : 0;
+    } else if (column === 'worstState') {
+      const prio = { 'Unhealthy': 0, 'Degraded': 1, 'Incomplete': 2, 'Unknown': 3, 'Healthy': 4 };
+      va = prio[va] !== undefined ? prio[va] : 5;
+      vb = prio[vb] !== undefined ? prio[vb] : 5;
+    }
+
+    if (typeof va === 'string') {
+      va = va.toLowerCase();
+      vb = (vb || '').toLowerCase();
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    }
+
+    return ((va || 0) - (vb || 0)) * dir;
+  });
+
+  return sorted;
+}
+
+function updateTable(trees) {
+  const tbody = document.getElementById('fleet-table-body');
+  const countEl = document.getElementById('table-count');
+  if (!tbody) return;
+
+  countEl.textContent = trees.length + ' trees';
+
+  // Build HTML using document fragment for performance
+  const fragment = document.createDocumentFragment();
+
+  for (let i = 0; i < trees.length; i++) {
+    const tree = trees[i];
+    const tr = document.createElement('tr');
+    tr.dataset.treeName = tree.name;
+
+    const state = getEffectiveHealthState(tree);
+    let stateClass = 'state-healthy';
+    if (state === 'Unhealthy') stateClass = 'state-unhealthy';
+    else if (state === 'Degraded') stateClass = 'state-degraded';
+    else if (state === 'NodeReadyFailed') stateClass = 'state-nodeready';
+    else if (state === 'Unknown') stateClass = 'state-unknown';
+
+    const occupancy = Math.round(tree.occupancyRatio * 100);
+    const syncClass = tree.synced ? 'synced-yes' : 'synced-no';
+    const syncText = tree.synced ? '✓' : '✗';
+
+    // Show actionable state description
+    var stateLabel = tree.worstState;
+    if (tree.nodeReadyFailed && state === 'NodeReadyFailed') stateLabel = 'Node / TPU Not Ready';
+    else if (tree.worstState === 'Incomplete') stateLabel = 'Incomplete';
+
+    tr.innerHTML =
+      '<td>' + escapeHtml(tree.name) + '</td>' +
+      '<td>' + escapeHtml(tree.acceleratorType) + '</td>' +
+      '<td>' + escapeHtml(tree.rootTopology) + '</td>' +
+      '<td class="' + stateClass + '">' + escapeHtml(stateLabel) + '</td>' +
+      '<td>' + occupancy + '%' +
+        '<span class="mini-bar-track"><span class="mini-bar-fill" style="width:' + occupancy + '%"></span></span></td>' +
+      '<td>' + tree.leafCount + '</td>' +
+      '<td>' + tree.totalNodes + '</td>' +
+      '<td class="' + syncClass + '">' + syncText + '</td>';
+
+    tr.addEventListener('click', function() {
+      document.dispatchEvent(new CustomEvent('tree-selected', { detail: { name: tree.name } }));
+    });
+
+    fragment.appendChild(tr);
+  }
+
+  tbody.innerHTML = '';
+  tbody.appendChild(fragment);
+}
+
+function setupTableSort() {
+  const headers = document.querySelectorAll('#fleet-table th[data-sort]');
+  headers.forEach(function(th) {
+    th.addEventListener('click', function() {
+      const col = th.dataset.sort;
+      if (renderState.sortColumn === col) {
+        renderState.sortDirection = renderState.sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        renderState.sortColumn = col;
+        renderState.sortDirection = 'asc';
+      }
+      // Update header indicators
+      headers.forEach(function(h) {
+        h.classList.remove('sort-active');
+        const base = h.textContent.replace(/ [↑↓↕]/g, '');
+        h.textContent = base + ' ↕';
+      });
+      th.classList.add('sort-active');
+      const base = th.textContent.replace(/ [↑↓↕]/g, '');
+      th.textContent = base + (renderState.sortDirection === 'asc' ? ' ↑' : ' ↓');
+
+      updateTable(getTableTrees());
+    });
+  });
+}
+
+function setupTableSearch() {
+  const input = document.getElementById('table-search');
+  if (!input) return;
+
+  let debounceTimer = null;
+  input.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() {
+      renderState.tableSearchQuery = input.value.trim();
+      updateTable(getTableTrees());
+    }, 300);
+  });
+}
+
+/* ============================================================
+   SECTION: Detail Panel (Chunk 6)
+   ============================================================ */
+async function openDetailPanel(treeName) {
+  const panel = document.getElementById('detail-panel');
+  const backdrop = document.getElementById('detail-backdrop');
+  const titleEl = document.getElementById('detail-title');
+  const metaEl = document.getElementById('detail-meta');
+  const treeEl = document.getElementById('detail-tree');
+  const eventsBody = document.getElementById('detail-events-body');
+
+  // Show loading state
+  titleEl.textContent = treeName;
+  metaEl.innerHTML = '';
+  treeEl.innerHTML = '<div class="detail-loading">Loading...</div>';
+  eventsBody.innerHTML = '';
+
+  panel.classList.add('open');
+  backdrop.classList.remove('hidden');
+  renderState.selectedTreeName = treeName;
+
+  try {
+    const resp = await apiFetch('/api/trees/' + encodeURIComponent(treeName));
+    if (!resp.ok) {
+      throw new Error('HTTP ' + resp.status + ': ' + resp.statusText);
+    }
+    const data = await resp.json();
+    renderDetailContent(data);
+  } catch (err) {
+    treeEl.innerHTML = '';
+    const errDiv = document.createElement('div');
+    errDiv.className = 'detail-error';
+    errDiv.textContent = 'Failed to load tree details: ' + (err && err.message ? err.message : String(err));
+    const br = document.createElement('br');
+    const retryBtn = document.createElement('button');
+    retryBtn.textContent = 'Retry';
+    retryBtn.style.marginTop = '8px';
+    retryBtn.style.padding = '4px 12px';
+    retryBtn.style.cursor = 'pointer';
+    retryBtn.style.background = 'var(--bg-elevated)';
+    retryBtn.style.border = '1px solid var(--border)';
+    retryBtn.style.borderRadius = '4px';
+    retryBtn.style.color = 'var(--text-primary)';
+    retryBtn.addEventListener('click', function() {
+      openDetailPanel(treeName);
+    });
+    errDiv.appendChild(br);
+    errDiv.appendChild(retryBtn);
+    treeEl.appendChild(errDiv);
+  }
+}
+
+/* ============================================================
+   SECTION: SliceID Color Palette & Helpers
+   ============================================================ */
+// Theme-agnostic palette: high-saturation colors that are distinguishable
+// on both light and dark backgrounds.
+const SLICE_COLOR_PALETTE = [
+  '#3B82F6', // blue
+  '#10B981', // emerald
+  '#F59E0B', // amber
+  '#8B5CF6', // violet
+  '#EC4899', // pink
+  '#06B6D4', // cyan
+  '#F97316', // orange
+  '#14B8A6', // teal
+  '#A855F7', // purple
+  '#EF4444', // red
+  '#84CC16', // lime
+  '#6366F1', // indigo
+  '#D946EF', // fuchsia
+  '#0EA5E9', // sky
+  '#F43F5E', // rose
+  '#22D3EE', // light cyan
+];
+
+
+
+function renderDetailContent(data) {
+  const metaEl = document.getElementById('detail-meta');
+  const treeEl = document.getElementById('detail-tree');
+
+  // Meta badges
+  metaEl.innerHTML =
+    '<span class="meta-badge">Type: ' + escapeHtml(data.acceleratorType) + '</span>' +
+    '<span class="meta-badge">Synced: ' + (data.synced ? '✓ Yes' : '✗ No') + '</span>' +
+    (data.syncedReason ? '<span class="meta-badge">Reason: ' + escapeHtml(data.syncedReason) + '</span>' : '');
+
+  // Render recursive tree
+  treeEl.innerHTML = '';
+  if (data.root) {
+    renderTreeView(treeEl, data.root, 0);
+  } else {
+    treeEl.innerHTML = '<div class="detail-loading">No partition data available</div>';
+  }
+
+  // Render events
+  if (data.events && data.events.length > 0) {
+    renderEventsTable(data.events);
+  } else {
+    document.getElementById('detail-events-body').innerHTML =
+      '<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:12px;">No recent events</td></tr>';
+  }
+}
+
+function closeDetailPanel() {
+  const panel = document.getElementById('detail-panel');
+  const backdrop = document.getElementById('detail-backdrop');
+  panel.classList.remove('open');
+  backdrop.classList.add('hidden');
+  renderState.selectedTreeName = null;
+}
+
+function renderTreeView(container, partition, depth) {
+  const node = document.createElement('div');
+  node.className = 'tree-node';
+
+  const isLeaf = !partition.children || partition.children.length === 0;
+  const hasChildren = !isLeaf;
+  const defaultExpanded = depth <= 2;
+
+  // Node line
+  const line = document.createElement('div');
+  line.className = 'tree-node-line';
+
+  // Toggle arrow
+  const toggle = document.createElement('span');
+  toggle.className = 'tree-toggle';
+  if (hasChildren) {
+    toggle.textContent = defaultExpanded ? '▼' : '▶';
+  } else {
+    toggle.textContent = '·';
+  }
+
+  // Partition ID
+  const idSpan = document.createElement('span');
+  idSpan.className = 'tree-partition-id';
+  idSpan.textContent = partition.partitionId || '—';
+  if (partition.partitionId) {
+    idSpan.title = partition.partitionId;
+  }
+
+  // Topology
+  const topoSpan = document.createElement('span');
+  topoSpan.className = 'tree-topology';
+  topoSpan.textContent = '[' + (partition.topology || '—') + ']';
+
+  // State badge
+  const stateBadge = document.createElement('span');
+  stateBadge.className = 'tree-state-badge';
+  const stateKey = (partition.state || '').toLowerCase();
+  if (stateKey === 'unhealthy') stateBadge.classList.add('badge-unhealthy');
+  else if (stateKey === 'degraded') stateBadge.classList.add('badge-degraded');
+  else if (stateKey === 'incomplete') stateBadge.classList.add('badge-incomplete');
+  else if (stateKey === 'unknown') stateBadge.classList.add('badge-unknown');
+  else stateBadge.classList.add('badge-healthy');
+  stateBadge.textContent = partition.state || 'Healthy';
+
+  // Occupancy
+  const occSpan = document.createElement('span');
+  occSpan.className = 'tree-occupancy';
+  occSpan.textContent = partition.occupancy || '';
+
+  // Taints
+  const taintsSpan = document.createElement('span');
+  taintsSpan.className = 'tree-taints';
+  if (partition.taints && partition.taints.length > 0) {
+    const taintsStr = partition.taints.map(t => {
+      if (t.value) {
+        return `${t.key}=${t.value}:${t.effect}`;
+      }
+      return `${t.key}:${t.effect}`;
+    }).join(', ');
+    taintsSpan.textContent = ` [Taints: ${taintsStr}]`;
+  }
+
+  line.appendChild(toggle);
+  line.appendChild(idSpan);
+  line.appendChild(topoSpan);
+  line.appendChild(stateBadge);
+  line.appendChild(occSpan);
+  line.appendChild(taintsSpan);
+
+
+
+  node.appendChild(line);
+
+  // Leaf node names
+  if (isLeaf && partition.nodeNames && partition.nodeNames.length > 0) {
+    const leafNodesDiv = document.createElement('div');
+    leafNodesDiv.className = 'tree-leaf-nodes';
+
+    for (let i = 0; i < partition.nodeNames.length; i++) {
+      const nodeDiv = document.createElement('div');
+      nodeDiv.className = 'tree-leaf-node';
+
+      let readyClass = '';
+      let readyIcon = '';
+      if (partition.nodeReady === true) {
+        readyClass = 'node-ready-true';
+        readyIcon = '●';
+      } else if (partition.nodeReady === false) {
+        readyClass = 'node-ready-false';
+        readyIcon = '●';
+      }
+
+      nodeDiv.innerHTML =
+        '<span class="' + readyClass + '">' + readyIcon + '</span>' +
+        '<span>' + escapeHtml(partition.nodeNames[i]) + '</span>' +
+        (partition.nodeReadyReason ? '<span style="color:var(--text-tertiary);">' + '(' + escapeHtml(partition.nodeReadyReason) + ')</span>' : '');
+
+      leafNodesDiv.appendChild(nodeDiv);
+    }
+
+    if (!defaultExpanded) leafNodesDiv.classList.add('collapsed-tree');
+    node.appendChild(leafNodesDiv);
+  }
+
+  // Children
+  if (hasChildren) {
+    const childContainer = document.createElement('div');
+    childContainer.className = 'tree-children';
+    if (!defaultExpanded) childContainer.classList.add('collapsed-tree');
+
+    for (let i = 0; i < partition.children.length; i++) {
+      renderTreeView(childContainer, partition.children[i], depth + 1);
+    }
+
+    node.appendChild(childContainer);
+
+    // Toggle click handler
+    line.addEventListener('click', function() {
+      const isCollapsed = childContainer.classList.contains('collapsed-tree');
+      if (isCollapsed) {
+        childContainer.classList.remove('collapsed-tree');
+        toggle.textContent = '▼';
+        // Also expand leaf nodes if any
+        const leafNodes = node.querySelector('.tree-leaf-nodes');
+        if (leafNodes) leafNodes.classList.remove('collapsed-tree');
+      } else {
+        childContainer.classList.add('collapsed-tree');
+        toggle.textContent = '▶';
+        const leafNodes = node.querySelector('.tree-leaf-nodes');
+        if (leafNodes) leafNodes.classList.add('collapsed-tree');
+      }
+    });
+  }
+
+  container.appendChild(node);
+}
+
+function renderEventsTable(events) {
+  const tbody = document.getElementById('detail-events-body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    const tr = document.createElement('tr');
+    if (ev.type === 'Warning') tr.className = 'event-warning';
+
+    const typeBadge = ev.type === 'Warning'
+      ? '<span class="event-type-badge badge-warning">Warning</span>'
+      : '<span class="event-type-badge badge-normal">Normal</span>';
+
+    tr.innerHTML =
+      '<td>' + escapeHtml(formatRelativeTime(ev.timestamp)) + '</td>' +
+      '<td>' + typeBadge + '</td>' +
+      '<td>' + escapeHtml(ev.reason) + '</td>' +
+      '<td style="white-space:normal;max-width:200px;">' + escapeHtml(ev.message) + '</td>';
+
+    tbody.appendChild(tr);
+  }
+}
+
+function formatRelativeTime(isoTimestamp) {
+  if (!isoTimestamp) return '—';
+  try {
+    const ts = new Date(isoTimestamp);
+    const now = new Date();
+    const diffMs = now - ts;
+    if (diffMs < 0) return 'just now';
+
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return diffSec + 's ago';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return diffMin + 'm ago';
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return diffHour + 'h ago';
+    const diffDay = Math.floor(diffHour / 24);
+    return diffDay + 'd ago';
+  } catch (_) {
+    return isoTimestamp;
+  }
+}
+
+/* ============================================================
+   SECTION: Filter Logic (Chunk 7)
+   ============================================================ */
+function applyFilters(trees) {
+  return trees.filter(function(tree) {
+    // Accelerator type filter (OR within)
+    if (renderState.filters.accelType.size > 0) {
+      if (!renderState.filters.accelType.has(tree.acceleratorType)) return false;
+    }
+
+    // Health state filter (OR within)
+    if (renderState.filters.healthState.size > 0) {
+      const hs = getEffectiveHealthState(tree);
+      if (!renderState.filters.healthState.has(hs)) return false;
+    }
+
+    // Occupancy filter (OR within)
+    if (renderState.filters.occupancy.size > 0) {
+      let occCategory;
+      if (tree.occupancyRatio <= 0) occCategory = 'empty';
+      else if (tree.occupancyRatio >= 1.0) occCategory = 'full';
+      else occCategory = 'partial';
+      if (!renderState.filters.occupancy.has(occCategory)) return false;
+    }
+
+    // Sync status filter (OR within)
+    if (renderState.filters.syncStatus.size > 0) {
+      const syncCat = tree.synced ? 'synced' : 'unsynced';
+      if (!renderState.filters.syncStatus.has(syncCat)) return false;
+    }
+
+    return true;
+  });
+}
+
+function ensureMatrixPanels(types) {
+  const grid = document.getElementById('matrix-grid');
+  const existing = new Set(Array.from(grid.querySelectorAll('.matrix-panel')).map(function(p) { return p.dataset.type; }));
+  const needed = new Set(types);
+
+  // Remove panels for types no longer present
+  existing.forEach(function(t) {
+    if (!needed.has(t)) {
+      const panel = grid.querySelector('.matrix-panel[data-type="' + (typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(t) : t.replace(/(["\\])/g, '\\$1')) + '"]');
+      if (panel) panel.remove();
+    }
+  });
+
+  // Add panels for new types
+  var sortedTypes = Array.from(needed).sort();
+  sortedTypes.forEach(function(t) {
+    if (!existing.has(t)) {
+      var panel = document.createElement('div');
+      panel.className = 'matrix-panel';
+      panel.dataset.type = t;
+
+      var h3 = document.createElement('h3');
+      h3.textContent = t;
+      panel.appendChild(h3);
+
+      var container = document.createElement('div');
+      container.className = 'canvas-container';
+
+      var canvas = document.createElement('canvas');
+      var canvasId = 'canvas-' + t;
+      canvas.id = canvasId;
+      container.appendChild(canvas);
+
+      panel.appendChild(container);
+      grid.appendChild(panel);
+      setupCanvasInteraction(canvasId);
+    }
+  });
+}
+
+function ensureAccelTypeFilters(types) {
+  var container = document.getElementById('filter-accel-type-options');
+  var existing = new Set(Array.from(container.querySelectorAll('input')).map(function(inp) { return inp.dataset.value; }));
+  types.sort().forEach(function(t) {
+    if (!existing.has(t)) {
+      var label = document.createElement('label');
+      label.className = 'filter-option';
+      label.innerHTML = '<input type="checkbox" data-category="accelType" data-value="' + escapeHtml(t) + '"><span>' + escapeHtml(t) + '</span>';
+      container.appendChild(label);
+      var cb = label.querySelector('input');
+      cb.addEventListener('change', function() {
+        var filterSet = renderState.filters[cb.dataset.category];
+        if (cb.checked) { filterSet.add(cb.dataset.value); } else { filterSet.delete(cb.dataset.value); }
+        applyFiltersAndRender();
+      });
+    }
+  });
+}
+
+function applyFiltersAndRender() {
+  var filtered = applyFilters(renderState.trees);
+
+  // Discover all accelerator types from data
+  var typeSet = new Set();
+  filtered.forEach(function(t) { typeSet.add(t.acceleratorType); });
+  renderState.trees.forEach(function(t) { typeSet.add(t.acceleratorType); });
+  var types = Array.from(typeSet).sort();
+
+  var changed = types.length !== renderState.knownAccelTypes.length || types.some(function(t, i) { return t !== renderState.knownAccelTypes[i]; });
+  if (changed) {
+    renderState.knownAccelTypes = types;
+    ensureAccelTypeFilters(types);
+  }
+
+  // Split by type (for table)
+  renderState.filteredByType = {};
+  types.forEach(function(t) { renderState.filteredByType[t] = []; });
+  filtered.forEach(function(tree) {
+    if (renderState.filteredByType[tree.acceleratorType]) {
+      renderState.filteredByType[tree.acceleratorType].push(tree);
+    }
+  });
+
+  // Group by podName
+  renderState.filteredByPod = {};
+  filtered.forEach(function(tree) {
+    var pod = tree.podID || '';
+    if (!renderState.filteredByPod[pod]) renderState.filteredByPod[pod] = [];
+    renderState.filteredByPod[pod].push(tree);
+  });
+
+  renderPodSummary(renderState.filteredByPod);
+  refreshOpenPodTabs();
+  updateKPIs(renderState.fleet);
+  updateTable(getTableTrees());
+}
+
+/* ============================================================
+   SECTION: Pod Summary Rendering
+   ============================================================ */
+function renderPodSummary(podGroups) {
+  var container = document.getElementById('pod-groups-container');
+  var podNames = Object.keys(podGroups).sort(function(a, b) {
+    if (a === '') return 1; if (b === '') return -1;
+    return a.localeCompare(b);
+  });
+
+  var collapsedPods = new Set();
+  container.querySelectorAll('.pod-group.collapsed').forEach(function(el) {
+    collapsedPods.add(el.dataset.pod);
+  });
+  container.innerHTML = '';
+
+  podNames.forEach(function(podName) {
+    var trees = podGroups[podName];
+    var group = document.createElement('div');
+    group.className = 'pod-group' + (collapsedPods.has(podName) ? ' collapsed' : '');
+    group.dataset.pod = podName;
+
+    var unhealthy = 0, degraded = 0;
+    trees.forEach(function(t) {
+      var hs = getEffectiveHealthState(t);
+      if (hs === 'Unhealthy') unhealthy++;
+      else if (hs === 'Degraded' || hs === 'NodeReadyFailed') degraded++;
+    });
+
+    var displayName = podName || '(ungrouped)';
+    var statsHtml = '<span>' + trees.length + ' PTs</span>';
+    if (unhealthy > 0) statsHtml += '<span class="stat-bad">' + unhealthy + ' unhealthy</span>';
+    if (degraded > 0) statsHtml += '<span class="stat-bad">' + degraded + ' degraded</span>';
+
+    var header = document.createElement('div');
+    header.className = 'pod-group-header';
+    header.innerHTML =
+      '<div class="pod-group-title"><span class="pod-arrow">▶</span><span class="pod-name-text" title="' + escapeHtml(displayName) + '">' + escapeHtml(displayName) + '</span></div>' +
+      '<div class="pod-group-stats">' + statsHtml + '</div>';
+
+    header.addEventListener('click', function() { openPodTab(podName); });
+
+    var body = document.createElement('div');
+    body.className = 'pod-group-body';
+    var grid = document.createElement('div');
+    grid.className = 'pod-pt-grid';
+
+    trees.forEach(function(tree) {
+      var cell = document.createElement('div');
+      cell.className = 'pod-pt-cell';
+      cell.style.background = getCellColor(tree);
+      if (!tree.synced) cell.style.backgroundImage = 'repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(255,255,255,0.2) 3px,rgba(255,255,255,0.2) 5px)';
+      cell.addEventListener('mouseenter', function(e) { showTooltip(e, tree); });
+      cell.addEventListener('mouseleave', hideTooltip);
+      cell.addEventListener('mousemove', function(e) { showTooltip(e, tree); });
+      cell.addEventListener('click', function() {
+        document.dispatchEvent(new CustomEvent('tree-selected', { detail: { name: tree.name } }));
+      });
+      grid.appendChild(cell);
+    });
+
+    body.appendChild(grid);
+    group.appendChild(header);
+    group.appendChild(body);
+    container.appendChild(group);
+  });
+}
+
+/* ============================================================
+   SECTION: Pod Detail Tabs
+   ============================================================ */
+function openPodTab(podName) {
+  if (renderState.openPodTabs.indexOf(podName) < 0) renderState.openPodTabs.push(podName);
+  renderState.activePodTab = podName;
+  renderPodTabs();
+}
+function closePodTab(podName) {
+  var idx = renderState.openPodTabs.indexOf(podName);
+  if (idx >= 0) renderState.openPodTabs.splice(idx, 1);
+  if (renderState.activePodTab === podName) {
+    renderState.activePodTab = renderState.openPodTabs.length > 0 ? renderState.openPodTabs[renderState.openPodTabs.length - 1] : null;
+  }
+  renderPodTabs();
+}
+function refreshOpenPodTabs() { if (renderState.openPodTabs.length > 0) renderPodTabs(); }
+
+function renderPodTabs() {
+  var tabBar = document.getElementById('main-tab-bar');
+  var panels = document.getElementById('main-tab-panels');
+  var summaryPanel = document.getElementById('tab-panel-summary');
+
+  // If no pod tabs open and we're viewing a pod, switch back to summary
+  if (renderState.openPodTabs.length === 0 && renderState.activePodTab !== null) {
+    renderState.activePodTab = null;
+  }
+  var activeTab = renderState.activePodTab; // null = summary
+
+  // Rebuild tab bar: Summary (permanent) + pod tabs
+  tabBar.innerHTML = '';
+  var summaryBtn = document.createElement('div');
+  summaryBtn.className = 'pod-tab-btn' + (activeTab === null ? ' active' : '');
+  summaryBtn.textContent = 'Summary';
+  summaryBtn.addEventListener('click', function() {
+    renderState.activePodTab = null;
+    renderPodTabs();
+  });
+  tabBar.appendChild(summaryBtn);
+
+  renderState.openPodTabs.forEach(function(pn) {
+    var btn = document.createElement('div');
+    btn.className = 'pod-tab-btn' + (pn === activeTab ? ' active' : '');
+    btn.title = pn || '(ungrouped)';
+    btn.innerHTML = '<span>' + escapeHtml(pn || '(ungrouped)') + '</span><span class="pod-tab-close" title="Close">✕</span>';
+    btn.querySelector('.pod-tab-close').addEventListener('click', function(e) { e.stopPropagation(); closePodTab(pn); });
+    btn.addEventListener('click', function() { renderState.activePodTab = pn; renderPodTabs(); });
+    tabBar.appendChild(btn);
+  });
+
+  // Remove old dynamic pod panels
+  panels.querySelectorAll('.pod-tab-content').forEach(function(el) { el.remove(); });
+
+  // Show/hide summary panel
+  summaryPanel.style.display = (activeTab === null) ? '' : 'none';
+
+  // If a pod tab is active, render its panel
+  if (activeTab !== null) {
+    var trees = renderState.filteredByPod[activeTab] || [];
+    var panel = document.createElement('div');
+    panel.className = 'pod-tab-content';
+
+    var hdr = document.createElement('div');
+    hdr.className = 'pod-detail-header';
+    hdr.innerHTML = '<h3>' + escapeHtml(activeTab || '(ungrouped)') + '</h3><span style="font-size:12px;color:var(--text-secondary);">' + trees.length + ' PTs</span>';
+    panel.appendChild(hdr);
+
+    // --- Pod-scoped KPIs ---
+    var podLeaves = 0, podOccupied = 0, podNodes = 0, podSynced = 0;
+    var podUnhealthy = 0, podDegraded = 0, podNodeReady = 0;
+    trees.forEach(function(t) {
+      podLeaves += (t.leafCount || 0);
+      podOccupied += (t.occupiedLeaves || 0);
+      podNodes += (t.totalNodes || 0);
+      if (t.synced) podSynced++;
+      var hs = getEffectiveHealthState(t);
+      if (hs === 'Unhealthy') podUnhealthy++;
+      else if (hs === 'Degraded') podDegraded++;
+      if (t.nodeReadyFailed) podNodeReady++;
+    });
+    var podOccPct = podLeaves > 0 ? ((podOccupied / podLeaves) * 100).toFixed(1) : '0';
+
+    var kpiHtml = '<section style="margin-bottom:16px;">' +
+      '<div class="kpi-progress-bars">' +
+      '<div class="progress-group"><label>Pod Occupancy</label><div class="progress-track"><div class="progress-bar bar-teal" style="width:' + podOccPct + '%"></div></div><span>' + podOccPct + '%</span></div>' +
+      '<div class="progress-group"><label>Pod Sync</label><div class="progress-track"><div class="progress-bar bar-blue" style="width:' + (trees.length > 0 ? (podSynced/trees.length*100) : 0) + '%"></div></div><span>' + podSynced + ' / ' + trees.length + '</span></div>' +
+      '</div>' +
+      '<div class="kpi-cards">' +
+      '<div class="kpi-card"><span class="kpi-value">' + trees.length + '</span><span class="kpi-label">Total Trees</span></div>' +
+      '<div class="kpi-card"><span class="kpi-value">' + podOccupied.toLocaleString() + '</span><span class="kpi-label">Occupied Leaves</span></div>' +
+      '<div class="kpi-card"' + (podUnhealthy > 0 ? ' style="border-color:#EF4444"' : '') + '><span class="kpi-value">' + podUnhealthy + '</span><span class="kpi-label">🛑 Unhealthy</span></div>' +
+      '<div class="kpi-card"' + (podDegraded > 0 ? ' style="border-color:#F97316"' : '') + '><span class="kpi-value">' + podDegraded + '</span><span class="kpi-label">⚠️ Degraded</span></div>' +
+      '<div class="kpi-card"' + (podNodeReady > 0 ? ' style="border-color:#EAB308"' : '') + '><span class="kpi-value">' + podNodeReady + '</span><span class="kpi-label">🔶 Node / TPU Not Ready</span></div>' +
+      '<div class="kpi-card"><span class="kpi-value">' + podNodes.toLocaleString() + '</span><span class="kpi-label">Total Partitions</span></div>' +
+      '</div></section>';
+    var kpiDiv = document.createElement('div');
+    kpiDiv.innerHTML = kpiHtml;
+    panel.appendChild(kpiDiv);
+
+    // --- Host Grid Cards ---
+    var treesDiv = document.createElement('div');
+    treesDiv.className = 'pod-detail-trees';
+
+    trees.forEach(function(tree) {
+      var card = document.createElement('div');
+      card.className = 'pt-detail-card';
+      var title = document.createElement('div');
+      title.className = 'pt-detail-card-title';
+      title.textContent = tree.name;
+      title.title = 'Click for full detail';
+      title.addEventListener('click', function() {
+        document.dispatchEvent(new CustomEvent('tree-selected', { detail: { name: tree.name } }));
+      });
+      card.appendChild(title);
+
+      var leafSlices = tree.leafSlices || [];
+      var leafCount = leafSlices.length > 0 ? leafSlices.length : (tree.leafCount || 16);
+      var cols = Math.ceil(Math.sqrt(leafCount));
+      if (cols < 2) cols = 2;
+      var hostGrid = document.createElement('div');
+      hostGrid.className = 'pt-host-grid';
+      hostGrid.style.gridTemplateColumns = 'repeat(' + cols + ', 18px)';
+
+      // Build slice color map for this tree
+      var treeSliceIds = new Set();
+      leafSlices.forEach(function(ls) { if (ls.sliceId) treeSliceIds.add(ls.sliceId); });
+      var sortedIds = Array.from(treeSliceIds).sort();
+      var sliceColors = {};
+      for (var si = 0; si < sortedIds.length; si++) {
+        sliceColors[sortedIds[si]] = SLICE_COLOR_PALETTE[si % SLICE_COLOR_PALETTE.length];
+      }
+
+      // Build a flat array of sliceId per cell for neighbor lookup
+      var cellSliceIds = [];
+      for (var i = 0; i < leafCount; i++) {
+        cellSliceIds.push((leafSlices[i] && leafSlices[i].sliceId) || '');
+      }
+
+      // Track cells by sliceId for hover highlighting
+      var sliceCellMap = {};
+
+      for (var i = 0; i < leafCount; i++) {
+        var c = document.createElement('div');
+        c.className = 'pt-host-cell';
+        var leaf = leafSlices[i];
+
+        if (leaf) {
+          var occ = leaf.occupancy === 'Occupied' ? 1.0 : 0.0;
+          var lc = interpolateOccupancyColor(occ);
+          if (leaf.state === 'Unhealthy') lc = '#EF4444';
+          else if (leaf.state === 'Degraded' || leaf.state === 'Incomplete') lc = '#F97316';
+          else if (leaf.state === 'Unknown') lc = getThemeColor('--unknown-state') || '#7A8BA4';
+          c.style.background = lc;
+          c.title = 'Leaf ' + i + ' | ' + leaf.state + ' | ' + (leaf.occupancy || 'Unspecified') +
+            (leaf.sliceId ? ' | ' + leaf.sliceId : '');
+        } else {
+          c.style.background = interpolateOccupancyColor(tree.occupancyRatio || 0);
+          c.title = 'Leaf ' + i;
+        }
+
+        // Draw enclosure borders: only on edges where neighbor has a different sliceId
+        var sid = cellSliceIds[i];
+        if (sid && sliceColors[sid]) {
+          var sc = sliceColors[sid];
+          var col = i % cols;
+          var bw = '2px';
+          var bt = 'solid ' + sc;
+          var borders = [];
+
+          // Top edge: no neighbor above, or neighbor has different sliceId
+          var above = i - cols;
+          if (above < 0 || cellSliceIds[above] !== sid) borders.push('border-top:' + bw + ' ' + bt);
+          // Bottom edge
+          var below = i + cols;
+          if (below >= leafCount || cellSliceIds[below] !== sid) borders.push('border-bottom:' + bw + ' ' + bt);
+          // Left edge
+          if (col === 0 || cellSliceIds[i - 1] !== sid) borders.push('border-left:' + bw + ' ' + bt);
+          // Right edge
+          if (col === cols - 1 || i + 1 >= leafCount || cellSliceIds[i + 1] !== sid) borders.push('border-right:' + bw + ' ' + bt);
+
+          if (borders.length > 0) {
+            c.style.cssText += ';' + borders.join(';');
+          }
+
+          c.dataset.sliceId = sid;
+          if (!sliceCellMap[sid]) sliceCellMap[sid] = [];
+          sliceCellMap[sid].push(c);
+        }
+
+        // Hover: highlight all cells with same sliceId
+        (function(cell) {
+          cell.addEventListener('mouseenter', function() {
+            var s = cell.dataset.sliceId;
+            if (s && sliceCellMap[s]) {
+              sliceCellMap[s].forEach(function(sc) { sc.style.opacity = '0.7'; });
+            }
+          });
+          cell.addEventListener('mouseleave', function() {
+            var s = cell.dataset.sliceId;
+            if (s && sliceCellMap[s]) {
+              sliceCellMap[s].forEach(function(sc) { sc.style.opacity = ''; });
+            }
+          });
+        })(c);
+
+        hostGrid.appendChild(c);
+      }
+
+      card.appendChild(hostGrid);
+
+      treesDiv.appendChild(card);
+    });
+    panel.appendChild(treesDiv);
+
+    // --- PT Table ---
+    var sorted = trees.slice().sort(function(a, b) {
+      var pa = {'Unhealthy':0,'Degraded':1,'Incomplete':2,'Unknown':3,'Healthy':4};
+      return (pa[a.worstState]||4) - (pa[b.worstState]||4);
+    });
+    var tableHtml = '<section style="margin-top:20px;"><div class="table-header"><h2>Partition Trees</h2><span>' + trees.length + ' trees</span></div>' +
+      '<div class="table-container"><table class="data-table"><thead><tr>' +
+      '<th>Name</th><th>Type</th><th>Topology</th><th>State</th><th>Occupancy</th><th>Leaves</th><th>Partitions</th><th>Synced</th>' +
+      '</tr></thead><tbody>';
+    sorted.forEach(function(t) {
+      var stateClass = '';
+      if (t.worstState === 'Unhealthy') stateClass = 'color:#EF4444;font-weight:600';
+      else if (t.worstState === 'Degraded') stateClass = 'color:#F97316;font-weight:600';
+      tableHtml += '<tr class="table-row" style="cursor:pointer" data-name="' + escapeHtml(t.name) + '">' +
+        '<td class="cell-name">' + escapeHtml(t.name) + '</td>' +
+        '<td>' + escapeHtml(t.acceleratorType) + '</td>' +
+        '<td>' + escapeHtml(t.rootTopology || '') + '</td>' +
+        '<td style="' + stateClass + '">' + escapeHtml(t.worstState) + (t.nodeReadyFailed ? ' 🔶' : '') + '</td>' +
+        '<td>' + Math.round((t.occupancyRatio||0)*100) + '%</td>' +
+        '<td>' + (t.leafCount||0) + '</td>' +
+        '<td>' + (t.totalNodes||0) + '</td>' +
+        '<td>' + (t.synced ? '✓' : '✗') + '</td></tr>';
+    });
+    tableHtml += '</tbody></table></div></section>';
+    var tableDiv = document.createElement('div');
+    tableDiv.innerHTML = tableHtml;
+    // Wire up row clicks
+    tableDiv.querySelectorAll('.table-row').forEach(function(row) {
+      row.addEventListener('click', function() {
+        document.dispatchEvent(new CustomEvent('tree-selected', { detail: { name: row.dataset.name } }));
+      });
+    });
+    panel.appendChild(tableDiv);
+
+    panels.appendChild(panel);
+  }
+}
+
+function setupFilterListeners() {
+  const checkboxes = document.querySelectorAll('.filter-option input[type="checkbox"]');
+  checkboxes.forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      const category = cb.dataset.category;
+      const value = cb.dataset.value;
+
+      const filterSet = renderState.filters[category];
+      if (!filterSet) return;
+
+      if (cb.checked) {
+        filterSet.add(value);
+      } else {
+        filterSet.delete(value);
+      }
+
+      applyFiltersAndRender();
+    });
+  });
+}
+
+/* ============================================================
+   SECTION: Stale Data Detection (Chunk 7)
+   ============================================================ */
+function detectStale(timestamp) {
+  if (timestamp === renderState.lastTimestamp) {
+    renderState.staleCount++;
+  } else {
+    renderState.staleCount = 0;
+    renderState.lastTimestamp = timestamp;
+  }
+
+  const indicator = document.getElementById('stale-indicator');
+  if (indicator) {
+    if (renderState.staleCount >= STALE_THRESHOLD) {
+      indicator.classList.remove('hidden');
+    } else {
+      indicator.classList.add('hidden');
+    }
+  }
+}
+
+/* ============================================================
+   SECTION: Authentication / Bearer Token Management
+   ============================================================ */
+function getAuthToken() {
+  return sessionStorage.getItem('ptree_dashboard_token') || '';
+}
+
+function setAuthToken(token) {
+  if (token) {
+    sessionStorage.setItem('ptree_dashboard_token', token.trim());
+  } else {
+    sessionStorage.removeItem('ptree_dashboard_token');
+  }
+  updateTokenBtnState();
+}
+
+function updateTokenBtnState() {
+  const label = document.getElementById('auth-token-btn-label');
+  if (label) {
+    label.textContent = getAuthToken() ? 'Token Active' : 'Set Bearer Token';
+  }
+}
+
+function openTokenModal() {
+  const modal = document.getElementById('token-modal');
+  const input = document.getElementById('token-input');
+  if (modal && input) {
+    input.value = getAuthToken();
+    modal.classList.remove('hidden');
+    input.focus();
+  }
+}
+
+function closeTokenModal() {
+  const modal = document.getElementById('token-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function saveToken() {
+  const input = document.getElementById('token-input');
+  if (input) {
+    setAuthToken(input.value);
+    closeTokenModal();
+    fetchAndRender();
+  }
+}
+
+function clearToken() {
+  const input = document.getElementById('token-input');
+  if (input) input.value = '';
+  setAuthToken('');
+  closeTokenModal();
+  fetchAndRender();
+}
+
+async function apiFetch(url, options) {
+  options = options || {};
+  const headers = Object.assign({}, options.headers || {});
+  const token = getAuthToken();
+  if (token && !headers['Authorization']) {
+    headers['Authorization'] = 'Bearer ' + token;
+  }
+  const resp = await fetch(url, Object.assign({}, options, { headers }));
+  if (resp.status === 401) {
+    const indicator = document.getElementById('stale-indicator');
+    if (indicator) {
+      indicator.textContent = '⚠ Authentication Required (401) — Click "Set Bearer Token"';
+      indicator.classList.remove('hidden');
+    }
+  }
+  return resp;
+}
+
+/* ============================================================
+   SECTION: Data Polling (Chunk 7)
+   ============================================================ */
+
+async function fetchAndRender() {
+  try {
+    const resp = await apiFetch('/api/trees');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    renderState.trees = data.trees || [];
+    renderState.fleet = data.fleet || {};
+
+    detectStale(data.timestamp || '');
+    applyFiltersAndRender();
+  } catch (err) {
+    console.warn('Backend unavailable:', err.message);
+    // Increment stale count
+    renderState.staleCount++;
+    const indicator = document.getElementById('stale-indicator');
+    if (indicator && renderState.staleCount >= STALE_THRESHOLD) {
+      if (err.message.indexOf('401') === -1) {
+        indicator.textContent = '⚠ Data Stale';
+      }
+      indicator.classList.remove('hidden');
+    }
+  }
+}
+
+function startPolling(intervalMs) {
+  if (renderState.pollTimer) clearInterval(renderState.pollTimer);
+  renderState.pollTimer = setInterval(fetchAndRender, intervalMs);
+}
+
+/* ============================================================
+   SECTION: Initialization + Integration (Chunk 8)
+   ============================================================ */
+function init() {
+  // 1. Apply saved theme & token state
+  initTheme();
+  updateTokenBtnState();
+
+  // 2. Setup sidebar filter listeners
+  setupFilterListeners();
+
+  // 3. Wire tree-selected event to detail panel
+  document.addEventListener('tree-selected', function(e) {
+    if (e.detail && e.detail.name) {
+      openDetailPanel(e.detail.name);
+    }
+  });
+
+  // 4. Detail panel close button
+  document.getElementById('detail-close').addEventListener('click', closeDetailPanel);
+
+  // 5. Backdrop click closes detail panel
+  document.getElementById('detail-backdrop').addEventListener('click', closeDetailPanel);
+
+  // 6. Escape key closes detail panel and modal
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeDetailPanel();
+      closeTokenModal();
+    }
+  });
+
+  // 7. Sidebar toggle
+  document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebar);
+
+  // 8. Theme toggle
+  document.getElementById('theme-select').addEventListener('change', function(e) { changeTheme(e.target.value); });
+
+  // 9. Theme change re-renders canvas
+  document.addEventListener('theme-changed', function() {
+    applyFiltersAndRender();
+  });
+
+  // 10. Table sort headers
+  setupTableSort();
+
+  // 11. Table search input (debounced)
+  setupTableSearch();
+
+  // 12. Initial data load
+  fetchAndRender();
+
+  // 13. Begin polling
+  startPolling(POLL_INTERVAL_MS);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<!-- Token Modal -->
+<div id="token-modal" class="modal hidden" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:20px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+    <h3 style="margin-bottom:8px;color:var(--text-primary);font-size:16px;">Kubernetes Bearer Token</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Enter a Kubernetes Bearer token (e.g. from <code>kubectl create token</code>) for authenticated API requests.</p>
+    <textarea id="token-input" rows="4" style="width:100%;background:var(--bg-primary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);padding:8px;font-family:monospace;font-size:12px;box-sizing:border-box;margin-bottom:12px;" placeholder="ey..."></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="clearToken()" style="padding:6px 12px;cursor:pointer;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text-secondary);font-size:12px;">Clear</button>
+      <button onclick="closeTokenModal()" style="padding:6px 12px;cursor:pointer;background:var(--bg-elevated);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:12px;">Cancel</button>
+      <button onclick="saveToken()" style="padding:6px 12px;cursor:pointer;background:var(--accent);border:none;border-radius:4px;color:#000;font-weight:600;font-size:12px;">Save Token</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

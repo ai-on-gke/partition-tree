@@ -1,0 +1,162 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for partition-tree.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: partition-tree-controller
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account.
+  # For GKE Workload Identity, bind a GCP service account granted BOTH
+  # roles/compute.viewer (GCE topology polling) and roles/monitoring.metricWriter
+  # (Cloud Monitoring metric export when metrics.enableGoogleInternalMetrics=true
+  # or metrics.directPush=true):
+  #   iam.gke.io/gcp-service-account: partition-controller@YOUR_PROJECT.iam.gserviceaccount.com
+  annotations: {}
+  # The name of the service account to use.
+  # Defaults to partition-controller-manager to match the kustomize output
+  # (namePrefix "partition-" + base "controller-manager"), so Workload Identity
+  # bindings work identically for both deployment methods.
+  name: "partition-controller-manager"
+
+podAnnotations:
+  kubectl.kubernetes.io/default-container: manager
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - "ALL"
+
+# Tuned for up to 3,456 MIGs / 55,296 nodes: with
+# StripNodeForCache (~3.13 KB/node), that fleet uses ~275 MiB live heap
+# (~580 MiB peak RSS at GOGC=100); 1Gi limit gives ~1.8x headroom.
+resources:
+  limits:
+    memory: 1Gi
+  requests:
+    memory: 256Mi
+
+nodeSelector:
+  cloud.google.com/gke-nodepool: cpu-pool
+
+tolerations: []
+
+affinity: {}
+
+# --- partition-tree specific ---
+
+# Runtime ConfigMap configuration. The controller watches this
+# ConfigMap for hot-reloadable settings (polling interval, retry
+# backoff, concurrency, etc.).
+config:
+  # Name of the ConfigMap to create. Must match --config-name.
+  name: "partition-config"
+  # If true, the chart creates the ConfigMap with the data below.
+  # If false, operators manage the ConfigMap out-of-band.
+  create: true
+  data:
+    config.yaml: |
+      polling:
+        interval: 1s
+        jitter: 100ms
+      syncTimeout: 15s
+      retry:
+        initialBackoff: 1s
+        maxBackoff: 30s
+        multiplier: 2.0
+      # rateLimit and concurrency are read once at startup and are NOT
+      # hot-reloaded. Changing them requires a controller restart.
+      rateLimit:
+        qps: 50
+        burst: 50
+      concurrency:
+        maxReconciles: 8
+      taints:
+        nodePropagation:
+          excludedPrefixes:
+          - "google.com/tpu"
+
+# OpenTelemetry tracing endpoint.
+otlp:
+  endpoint: "opentelemetry-collector.gke-managed-otel.svc.cluster.local:4317"
+
+# GCE API configuration.
+gce:
+  endpoint: ""
+  useStaging: false
+  mock: false
+  mockFixtures: ""
+
+# Metrics endpoint configuration.
+metrics:
+  enabled: true
+  port: 8443
+  secure: true
+  enableMetrics: true
+  # Pushes kubernetes.io/internal/addons/partition_tree/* metrics directly to
+  # Cloud Monitoring (monitoring.googleapis.com). Requires roles/monitoring.metricWriter
+  # (monitoring.timeSeries.create) on the controller's GCP service account.
+  enableGoogleInternalMetrics: true
+  # Pushes customer prometheus_target metrics directly to Cloud Monitoring without
+  # an OpenTelemetry Collector. Also requires roles/monitoring.metricWriter.
+  directPush: false
+  cardinalityLimit: 100000
+  podMonitor:
+    enabled: false
+    # Labels must match the Prometheus operator's selector (e.g., release: monitoring)
+    labels: {}
+    interval: 15s
+    scrapeTimeout: 10s
+
+# Debug / zap logging.
+debug:
+  enabled: false
+  level: 1
+
+# Feature flags.
+# enableTaints enables the Taints feature.
+# Accepts boolean (true = All, false = disabled), array of options
+# (e.g. ["NodeTaints", "NodesNotFound"]), or comma-separated string
+# (e.g. "NodeTaints,NodesNotFound", "PartitionState", "All").
+enableTaints: false
+decoupledLifecycle: false
+# tpuAllocatableReadiness makes a leaf's NodeReady condition also require
+# every node to have its full google.com/tpu chip count allocatable
+# (Reason TPUsNotAllocatable). Read at controller startup only.
+tpuAllocatableReadiness: false
+enableHTTP2: false
+
+# Additional environment variables to pass to the controller.
+env: []

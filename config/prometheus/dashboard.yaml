@@ -1,0 +1,560 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: partition-tree-dashboard
+  namespace: partitiontree-system
+  labels:
+    grafana_dashboard: "1"
+data:
+  partition-tree.json: |-
+    {
+      "title": "TPU PartitionTree Schedulability",
+      "description": "Monitoring dashboard for PartitionTree health and taints.",
+      "panels": [
+        {
+          "type": "text",
+          "title": "",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 16,
+            "h": 8
+          },
+          "options": {
+            "mode": "markdown",
+            "content": "# TPU PartitionTree Schedulability\n\nThis dashboard provides real-time visibility into the health and availability of all **PartitionTrees** managed by the Partition Tree controller. \n\nIt tracks the eligibility of PartitionTrees for superslicing, highlighting hardware interruptions, active taints, and recovery events across the fleet."
+          },
+          "transparent": true
+        },
+        {
+          "type": "stat",
+          "title": "Total PartitionTrees",
+          "description": "Total number of PartitionTrees currently registered in the cluster.",
+          "gridPos": {
+            "x": 16,
+            "y": 4,
+            "w": 8,
+            "h": 4
+          },
+          "targets": [
+            {
+              "expr": "sum by (tpu_pod_id) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} > 0)",
+              "legendFormat": "{{tpu_pod_id}}"
+            }
+          ],
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": ""
+            },
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "textMode": "auto"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "text"
+              },
+              "mappings": []
+            }
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Total Tainted PartitionTrees",
+          "description": "Total number of PartitionTrees that currently have ANY active taint. Instantly drops inactive tombstones.",
+          "gridPos": {
+            "x": 16,
+            "y": 0,
+            "w": 8,
+            "h": 4
+          },
+          "targets": [
+            {
+              "expr": "count by (tpu_pod_id) ( (sum by (cluster, partition_tree_name) (partition_tree_taint{cluster=~\"$cluster\", partition_tree_name=~\"$partition_tree_name\", taint_key!~\"$excluded_taints\"}) > 0) * on (cluster, partition_tree_name) group_left(tpu_pod_id) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} > 0) ) or (sum by (tpu_pod_id) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} > 0) * 0)",
+              "legendFormat": "{{tpu_pod_id}}"
+            }
+          ],
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": ""
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Untainted PartitionTree Percentage by TPU Pod",
+          "description": "Percentage of PartitionTrees that are untainted and eligible for superslicing, grouped by their TPU Pod ID.",
+          "gridPos": {
+            "x": 0,
+            "y": 8,
+            "w": 24,
+            "h": 8
+          },
+          "targets": [
+            {
+              "expr": "(\n  sum by (tpu_pod_id) (\n    (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} > 0)\n    unless on(cluster, partition_tree_name) (sum by (cluster, partition_tree_name) (partition_tree_taint{cluster=~\"$cluster\", partition_tree_name=~\"$partition_tree_name\", taint_key!~\"$excluded_taints\"}) > 0)\n  ) \n  or (sum by (tpu_pod_id) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} > 0) * 0)\n)\n/\nsum by (tpu_pod_id) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} > 0)",
+              "legendFormat": "{{tpu_pod_id}}"
+            }
+          ],
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "fillOpacity": 0,
+                "spanNulls": false
+              },
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Tainted PartitionTrees",
+          "description": "All PartitionTrees currently experiencing at least one active taint (1 per PartitionTree, stacked).",
+          "gridPos": {
+            "x": 0,
+            "y": 16,
+            "w": 24,
+            "h": 8
+          },
+          "targets": [
+            {
+              "expr": "clamp_max(\n  sum by (cluster, partition_tree_name) (\n    partition_tree_taint{cluster=~\"$cluster\", partition_tree_name=~\"$partition_tree_name\", taint_key!~\"$excluded_taints\"}\n  ) > 0,\n  1\n)\n* on (cluster, partition_tree_name) group_left(tpu_pod_id) (\n  partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} > 0\n)",
+              "legendFormat": "{{partition_tree_name}} ({{tpu_pod_id}})"
+            }
+          ],
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "stepAfter",
+                "barAlignment": -1,
+                "lineWidth": 2,
+                "fillOpacity": 40,
+                "gradientMode": "none",
+                "spanNulls": false,
+                "showPoints": "auto",
+                "pointSize": 5,
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                },
+                "axisPlacement": "auto",
+                "axisLabel": "Tainted PartitionTrees",
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "hideFrom": {
+                  "tooltip": false,
+                  "viz": false,
+                  "legend": false
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "min": 0
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Count of PartitionTrees with Taint",
+          "description": "Number of unique PartitionTrees experiencing each active taint, grouped by taint key and value (Stacked).",
+          "gridPos": {
+            "x": 0,
+            "y": 24,
+            "w": 24,
+            "h": 8
+          },
+          "targets": [
+            {
+              "expr": "count by (taint_key, taint_value) (\n  (sum by (cluster, partition_tree_name, taint_key, taint_value) (partition_tree_taint{cluster=~\"$cluster\", partition_tree_name=~\"$partition_tree_name\", taint_key!~\"$excluded_taints\"}) > 0)\n  * on (cluster, partition_tree_name) group_left()\n  (max by (cluster, partition_tree_name) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} > 0))\n)",
+              "legendFormat": "{{taint_key}}={{taint_value}}"
+            }
+          ],
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "barAlignment": -1,
+                "lineWidth": 2,
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "spanNulls": false,
+                "showPoints": "auto",
+                "pointSize": 5,
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                },
+                "axisPlacement": "auto",
+                "axisLabel": "PartitionTree Count",
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "hideFrom": {
+                  "tooltip": false,
+                  "viz": false,
+                  "legend": false
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "min": 0
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "PartitionTree Interruptions (no taints -> tainted)",
+          "description": "Counts how many PartitionTrees transitioned from 0 taints to >0 taints, bucketed by time interval (1 hour minimum).",
+          "gridPos": {
+            "x": 0,
+            "y": 32,
+            "w": 24,
+            "h": 8
+          },
+          "targets": [
+            {
+              "expr": "sum(\n  count_over_time(\n    (\n      (\n        (clamp_max(sum by (cluster, partition_tree_name) (partition_tree_taint{cluster=~\"$cluster\", partition_tree_name=~\"$partition_tree_name\", taint_key!~\"$excluded_taints\"}) > 0, 1) * on (cluster, partition_tree_name) group_left() (max by (cluster, partition_tree_name) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} > 0)))\n        or (max by (cluster, partition_tree_name) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} > 0) * 0)\n      )\n      >\n      (\n        (clamp_max(sum by (cluster, partition_tree_name) (partition_tree_taint{cluster=~\"$cluster\", partition_tree_name=~\"$partition_tree_name\", taint_key!~\"$excluded_taints\"} offset 1m) > 0, 1) * on (cluster, partition_tree_name) group_left() (max by (cluster, partition_tree_name) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} offset 1m > 0)))\n        or (max by (cluster, partition_tree_name) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} offset 1m > 0) * 0)\n      )\n    )[$__interval:1m]\n  )\n) or vector(0)",
+              "legendFormat": "Interruptions"
+            }
+          ],
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "custom": {
+                "drawStyle": "bars",
+                "lineInterpolation": "smooth",
+                "barAlignment": -1,
+                "lineWidth": 0,
+                "fillOpacity": 80,
+                "gradientMode": "opacity",
+                "spanNulls": false,
+                "showPoints": "auto",
+                "pointSize": 5,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "axisPlacement": "auto",
+                "axisLabel": "Interruptions / hr",
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "hideFrom": {
+                  "tooltip": false,
+                  "viz": false,
+                  "legend": false
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "red"
+              }
+            }
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "PartitionTree Recoveries (tainted -> no taints)",
+          "description": "Counts how many PartitionTrees transitioned from >0 taints to 0 taints, bucketed by time interval (1 hour minimum).",
+          "gridPos": {
+            "x": 0,
+            "y": 40,
+            "w": 24,
+            "h": 8
+          },
+          "targets": [
+            {
+              "expr": "sum(\n  count_over_time(\n    (\n      (\n        (clamp_max(sum by (cluster, partition_tree_name) (partition_tree_taint{cluster=~\"$cluster\", partition_tree_name=~\"$partition_tree_name\", taint_key!~\"$excluded_taints\"} offset 1m) > 0, 1) * on (cluster, partition_tree_name) group_left() (max by (cluster, partition_tree_name) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} offset 1m > 0)))\n        or (max by (cluster, partition_tree_name) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} offset 1m > 0) * 0)\n      )\n      >\n      (\n        (clamp_max(sum by (cluster, partition_tree_name) (partition_tree_taint{cluster=~\"$cluster\", partition_tree_name=~\"$partition_tree_name\", taint_key!~\"$excluded_taints\"}) > 0, 1) * on (cluster, partition_tree_name) group_left() (max by (cluster, partition_tree_name) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} > 0)))\n        or (max by (cluster, partition_tree_name) (partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"} > 0) * 0)\n      )\n    )[$__interval:1m]\n  )\n) or vector(0)",
+              "legendFormat": "Recoveries"
+            }
+          ],
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "custom": {
+                "drawStyle": "bars",
+                "lineInterpolation": "smooth",
+                "barAlignment": -1,
+                "lineWidth": 0,
+                "fillOpacity": 80,
+                "gradientMode": "opacity",
+                "spanNulls": false,
+                "showPoints": "auto",
+                "pointSize": 5,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "axisPlacement": "auto",
+                "axisLabel": "Recoveries / hr",
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "hideFrom": {
+                  "tooltip": false,
+                  "viz": false,
+                  "legend": false
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "green"
+              }
+            }
+          }
+        }
+      ],
+      "schemaVersion": 38,
+      "refresh": "10s",
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "templating": {
+        "list": [
+          {
+            "name": "cluster",
+            "label": "Cluster",
+            "type": "query",
+            "datasource": "prometheus",
+            "query": "query_result(max by (cluster) (max_over_time(partition_tree_info[$__range]) > 0))",
+            "regex": "/cluster=\"([^\"]+)\"/",
+            "refresh": 2,
+            "sort": 1,
+            "includeAll": true,
+            "allValue": ".*",
+            "multi": true,
+            "hide": 0,
+            "current": {
+              "selected": true,
+              "text": [
+                "All"
+              ],
+              "value": [
+                "$__all"
+              ]
+            }
+          },
+          {
+            "name": "accelerator_type",
+            "label": "Accelerator Type",
+            "type": "query",
+            "datasource": "prometheus",
+            "query": "query_result(max by (accelerator_type) (max_over_time(partition_tree_info{cluster=~\"$cluster\"}[$__range]) > 0))",
+            "regex": "/accelerator_type=\"([^\"]+)\"/",
+            "refresh": 2,
+            "sort": 1,
+            "includeAll": true,
+            "allValue": ".*",
+            "multi": true,
+            "hide": 0,
+            "current": {
+              "selected": true,
+              "text": [
+                "All"
+              ],
+              "value": [
+                "$__all"
+              ]
+            }
+          },
+          {
+            "name": "tpu_pod_id",
+            "label": "TPU Pod ID",
+            "type": "query",
+            "datasource": "prometheus",
+            "query": "query_result(max by (tpu_pod_id) (max_over_time(partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\"}[$__range]) > 0))",
+            "regex": "/tpu_pod_id=\"([^\"]+)\"/",
+            "refresh": 2,
+            "sort": 1,
+            "includeAll": true,
+            "allValue": ".*",
+            "multi": true,
+            "hide": 0,
+            "current": {
+              "selected": true,
+              "text": [
+                "All"
+              ],
+              "value": [
+                "$__all"
+              ]
+            }
+          },
+          {
+            "name": "partition_tree_name",
+            "label": "PartitionTree",
+            "type": "query",
+            "datasource": "prometheus",
+            "query": "query_result(max by (partition_tree_name) (max_over_time(partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\"}[$__range]) > 0))",
+            "regex": "/partition_tree_name=\"([^\"]+)\"/",
+            "refresh": 2,
+            "sort": 1,
+            "includeAll": true,
+            "allValue": ".*",
+            "multi": true,
+            "hide": 0,
+            "current": {
+              "selected": true,
+              "text": [
+                "All"
+              ],
+              "value": [
+                "$__all"
+              ]
+            }
+          },
+          {
+            "name": "excluded_taints",
+            "label": "Excluded Taints",
+            "type": "query",
+            "datasource": "prometheus",
+            "query": "query_result(label_replace(vector(1), \"taint_key\", \"None\", \"\", \"\") or max by (taint_key) ((max_over_time(partition_tree_taint{cluster=~\"$cluster\", partition_tree_name=~\"$partition_tree_name\"}[$__range]) > 0) * on (cluster, partition_tree_name) group_left() (max by (cluster, partition_tree_name) (max_over_time(partition_tree_info{cluster=~\"$cluster\", accelerator_type=~\"$accelerator_type\", tpu_pod_id=~\"$tpu_pod_id\", partition_tree_name=~\"$partition_tree_name\"}[$__range]) > 0))))",
+            "regex": "/taint_key=\"([^\"]+)\"/",
+            "refresh": 2,
+            "sort": 0,
+            "includeAll": false,
+            "multi": true,
+            "hide": 0,
+            "current": {
+              "selected": true,
+              "text": [
+                "None"
+              ],
+              "value": [
+                "None"
+              ]
+            },
+            "options": []
+          }
+        ]
+      }
+    }

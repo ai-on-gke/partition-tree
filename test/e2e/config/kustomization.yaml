@@ -1,0 +1,56 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# E2E overlay: builds on top of config/default and patches the
+# controller-manager Deployment to run with --gce-mock plus a fixture
+# ConfigMap mounted at /etc/gce-mock. The fixture ConfigMap is generated
+# from gce_mock_fixtures.yaml below; e2e specs overwrite it via
+# `kubectl create cm --from-file ... --dry-run=client -o yaml | kubectl apply -f -`
+# to swap fake GCE state mid-suite.
+
+resources:
+- ../../../config/default
+
+# config/default already sets namePrefix: partition-, so we
+# deliberately don't repeat that — re-setting it would double-prefix
+# every resource. We DO re-set namespace so the configMapGenerator
+# below lands in partition-system instead of the default namespace
+# (kustomize only applies the base's namespace transformer to base
+# resources, not overlay-generated ones).
+namespace: partition-system
+
+# Generate the fixture ConfigMap. disableNameSuffixHash keeps the name
+# stable so the spec can rewrite it without rolling the deployment, and
+# the deployment volume mount can reference a fixed name.
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+- name: gce-mock-fixtures
+  files:
+  - fixtures.yaml=gce_mock_fixtures.yaml
+
+patches:
+- path: manager_gce_mock_patch.yaml
+  target:
+    kind: Deployment
+    name: controller-manager
+- path: manager_nodeselector_patch.json
+  target:
+    kind: Deployment
+    name: controller-manager
+- path: partition_config.yaml
+  target:
+    kind: ConfigMap
+    name: config

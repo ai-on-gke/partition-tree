@@ -1,0 +1,21 @@
+# Scale Benchmark Summary (internal/metrics/scale_bench_test.go)
+
+## TL;DR & Sanity Check Verdict
+PASSED. With a realistic **20ms gRPC RTT** simulated per Cloud Monitoring `CreateTimeSeries` call:
+- **Unbatched Sequential (Before)**: `BenchmarkEndToEndScrapeCycle_Scale` took **35.51 s** (1,729 sequential RPCs), exceeding the 30s OpenTelemetry `PeriodicReader` timeout and causing dropped metrics.
+- **Intermingled per CR + Concurrent Export (After)**: Packing all domain metrics (`occupancy`, `taint`, `info`) for each PartitionTree CR into batches of up to 200 points (cutting RPCs by 3x from 1,729 to 577) and exporting across 10 concurrent workers reduces full cluster export time to **~1.29 s** (27x faster, well within the 30s timeout).
+- **Reconciler Hot Path**: Steady-state reconciliation adds only ~0.12 ms (128 µs) per PartitionTree CR update.
+- **Startup / Resync**: Full cluster re-ingest (all 576 trees / 36k series) completes in ~90 ms.
+
+## Scale Tested
+- 4 TPU Pods x 144 Trees = 576 PartitionTrees (31 partitions each)
+- ~36,288 total active metric time-series (~17.8k occupancy, ~17.8k taint, 576 info)
+- Simulated gRPC RTT: 20 ms per `Export` call
+
+## Performance Snapshot (AMD EPYC 7B12)
+| Operation | Latency | Memory | Impact |
+| :--- | :--- | :--- | :--- |
+| Steady-State Reconcile | ~128 µs | 83 KB | Negligible overhead on controller loop |
+| Cold-Start / Resync | ~90 ms | 64 MB | Near-instant startup ingest |
+| Full 60s Export Cycle (Sequential Unbatched, 20ms RTT) | ~35.51 s | 45 MB | Timed out (> 30s PeriodicReader deadline) |
+| Full 60s Export Cycle (Intermingled Concurrent, 20ms RTT) | ~1.29 s | 44.7 MB | 27x speedup; ~2.1% of 60s export window |
